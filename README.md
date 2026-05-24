@@ -1,27 +1,117 @@
-# Rootcause-SLM: Local SLM for AIOps & Root Cause Analysis
+# Rootcause-SLM
 
 ![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Custom%20Data%20Pipeline-EE4C2C?logo=pytorch)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-F9AB00?logo=huggingface)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-##  Abstract
+Fine-tuning of Qwen2.5-1.5B for anomaly detection and root cause analysis on HDFS logs — fully local, no external API at inference time.
 
-In modern Cloud infrastructure, identifying the root cause of a system failure among millions of log lines is a critical challenge. While large proprietary LLMs (like GPT-4) can analyze logs, enterprise data privacy policies strictly prohibit sending sensitive server logs to external APIs. 
+---
 
-**Rootcause-SLM** solves this by fine-tuning a Small Language Model (SLM) — specifically Qwen-1.5B — to perform high-accuracy Root Cause Analysis (RCA) **100% locally**. Inspired by recent research in targeted SLM distillation, it doesn't just classify errors; it generates a deterministic, step-by-step **Chain-of-Thought (CoT)** reasoning before outputting a strict JSON format for downstream automation.
+## Motivation
 
-##  Key Engineering Features
+Sending server logs to GPT-4 or Claude raises an obvious problem in enterprise environments: logs contain sensitive infrastructure data. This project explores an alternative — a small model (1.5B parameters) fine-tuned on domain-specific data, running locally and producing structured output that can be consumed directly by downstream automation.
 
-- **Privacy-First & Cost-Efficient:** Runs locally with only 1.5 Billion parameters, requiring minimal VRAM compared to massive generic models.
-- **Data Distillation Pipeline:** Synthetic CoT datasets generated using larger teacher models (Gemini 1.5 Flash) built on top of the open-source *Loghub* dataset.
-- **Custom PyTorch Architecture:** Avoids high-level wrapper abstractions by implementing custom `torch.utils.data.Dataset` and `DataCollator` for highly optimized tensor padding and GPU memory management.
-- **Deterministic Evaluation:** Strict structural constraints during Supervised Fine-Tuning (SFT) force the model to output valid JSON, allowing for rigorous `Pass@1` (Exact Match) automated evaluation without relying on "LLM-as-a-Judge" subjectivity.
+The approach is inspired by teacher-student distillation: a large model (Llama 3.3-70B via Groq) generates annotations, a small model learns from them. The result is a specialized, lightweight model that requires no internet access at inference time.
 
-##  Architecture & Pipeline
+---
 
-1. **Data Engineering (`data/`):** Raw logs are filtered, templates are extracted, and a teacher model generates the ground-truth reasoning steps.
-2. **Low-Level Formatting (`src/dataset.py`):** Raw text and JSON structures are tokenized and packed into uniform matrices using a custom PyTorch collator, managing `-100` padding for optimal Loss calculation.
-3. **Training (`src/train.py`):** The model undergoes SFT on high-end GPUs, actively penalizing formatting deviations to guarantee strict JSON compliance.
+## Dataset
 
-##  Quick Start
+Source: [Loghub](https://github.com/logpai/loghub) — 2,000 real HDFS log lines collected from a Yahoo cluster in 2008, with `Normal`/`Anomaly` labels provided by [Loglizer](https://github.com/logpai/loglizer).
+
+**Class imbalance:** 96.5% Normal / 3.5% Anomaly, addressed with `WeightedRandomSampler` to oversample anomalies during training.
+
+**Annotation:** each log is enriched by Llama 3.3-70B with a `cause` and a 3-step `reasoning`. Ground truth labels always come from Loglizer — the LLM only generates the explanation text.
+
+```json
+{
+  "log": "081109 203615 148 WARN dfs.DataNode: Got exception while serving blk_38865049...",
+  "label": "Anomaly",
+  "cause": "Network exception during block transfer between DataNodes",
+  "reasoning": "Step 1: The DataNode was attempting to serve a block... Step 2: ..."
+}
+```
+
+---
+
+## Pipeline
+
+```
+hdfs_dataset.json
+      │
+      ▼
+ dataset.py       Tokenization, ChatML formatting, label masking (-100)
+      │
+      ▼
+  train.py        LoRA on Qwen2.5-1.5B, WeightedRandomSampler, cosine LR schedule
+      │
+      ▼
+modele_hdfs/      Saved LoRA adapters
+      │
+      ▼
+ inference.py     Log in → {cause, reasoning} JSON out
+```
+
+---
+
+## Technical choices
+
+**Qwen2.5-1.5B-Instruct** — Alibaba Cloud, Apache 2.0 license, trained on 18 trillion tokens. Chosen for its strong reasoning-to-size ratio and because it fits on a T4 GPU (16 GB).
+
+**LoRA (r=16, alpha=32)** — instead of updating 1.5B parameters, we train two small matrices $A \in \mathbb{R}^{r \times d}$ and $B \in \mathbb{R}^{d \times r}$ such that $\Delta W = BA$. Only 4.36M parameters are trained (0.28% of total), on the `q_proj`, `k_proj`, `v_proj`, `o_proj` attention layers.
+
+**Label masking** — cross-entropy is computed only on response tokens. Prompt tokens are set to `-100` (ignored by PyTorch). Without this, the model tries to predict its own context — wasted gradient.
+
+**Dynamic padding** — the collator pads to the longest sequence in each batch, not to `max_length`. Saves VRAM at every training step.
+
+---
+
+## Repo structure
+
+```
+.
+├── data/
+│   └── hdfs_dataset.json
+├── src/
+│   ├── dataset.py      # HDFSLogDataset + HDFSDataCollator
+│   └── train.py        # training loop + LoRA
+├── modele_hdfs/        # generated after training
+└── README.md
+```
+
+---
+
+## Usage
+
+On Google Colab (T4 GPU recommended):
+
+```python
+!pip install transformers peft accelerate torchao -q
+!python src/train.py
+```
+
+Local (CPU, slow):
+
+```bash
+pip install torch transformers peft accelerate --index-url https://download.pytorch.org/whl/cpu
+python src/train.py
+```
+
+---
+
+## Results
+
+| Epoch | Train loss | Val loss | Val PPL |
+|-------|-----------|----------|---------|
+| 1     | 0.419     | 0.176    | 1.19    |
+| ...   | ...       | ...      | ...     |
+
+*Table to be completed after full training.*
+
+---
+
+## Limitations
+
+The dataset is small (2,000 examples) and not very diverse — HDFS logs are highly repetitive, which explains the very low perplexity from epoch 1. Generalization to other log systems (BGL, Thunderbird) has not been evaluated and would likely show lower performance, since the model has only seen HDFS-specific patterns.
