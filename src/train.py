@@ -29,7 +29,7 @@ from dataset import HDFSLogDataset, HDFSDataCollator
 # ─────────────────────────────────────────────────────────────────────────────
 MODEL_NAME    = "Qwen/Qwen2.5-1.5B-Instruct"
 JSON_PATH     = "hdfs_dataset.json"
-OUTPUT_DIR    = "modele_hdfs"
+OUTPUT_DIR    = "/content/modele_hdfs"
 
 # Entraînement
 MAX_LENGTH    = 512
