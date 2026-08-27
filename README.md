@@ -73,11 +73,16 @@ modele_hdfs/      Saved LoRA adapters
 ```
 .
 ├── data/
-│   └── hdfs_dataset.json
+│   ├── hdfs_dataset.json        # training set (1999 annotated logs)
+│   └── hdfs_test_dataset.json   # held-out test set (527 logs)
 ├── src/
 │   ├── dataset.py      # HDFSLogDataset + HDFSDataCollator
-│   └── train.py        # training loop + LoRA
-├── modele_hdfs/        # generated after training
+│   ├── train.py        # training loop + LoRA
+│   ├── evaluate.py     # compares fine-tuned model vs baselines (ROUGE-L, BERTScore)
+│   └── inference.py    # single-log inference with the fine-tuned model
+├── modele_hdfs/         # LoRA adapter weights (generated after training)
+├── results/             # evaluation output (resultats_evaluation.json)
+├── requirements.txt
 └── README.md
 ```
 
@@ -85,30 +90,58 @@ modele_hdfs/      Saved LoRA adapters
 
 ## Usage
 
-On Google Colab (T4 GPU recommended):
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Training — on Google Colab (T4 GPU recommended):
 
 ```python
-!pip install transformers peft accelerate torchao -q
 !python src/train.py
 ```
 
 Local (CPU, slow):
 
 ```bash
-pip install torch transformers peft accelerate --index-url https://download.pytorch.org/whl/cpu
 python src/train.py
+```
+
+Evaluation (compares fine-tuned model to the two baselines):
+
+```bash
+python src/evaluate.py          # full test set
+python src/evaluate.py --n 50   # quick run on 50 examples
+```
+
+Inference on a single log:
+
+```bash
+python src/inference.py --log "081109 203615 148 WARN dfs.DataNode: Got exception while serving blk_38865049..."
 ```
 
 ---
 
 ## Results
 
-| Epoch | Train loss | Val loss | Val PPL |
-|-------|-----------|----------|---------|
-| 1     | 0.419     | 0.176    | 1.19    |
-| ...   | ...       | ...      | ...     |
+### Training
 
-*Table to be completed after full training.*
+| Epoch | Train loss | Val loss | Train PPL | Val PPL |
+|-------|-----------|----------|-----------|---------|
+| 1     | 0.419     | 0.176    | 1.52      | 1.19    |
+| 2     | 0.094     | 0.123    | 1.10      | 1.13    |
+| 3     | 0.060     | 0.117    | 1.06      | 1.12    |
+| 4     | 0.050     | 0.100    | 1.05      | 1.10    |
+| 5     | 0.049     | 0.099    | 1.05      | 1.10    |
+
+Best checkpoint: epoch 5 (val_loss = 0.099). Full history in `modele_hdfs/historique.json`.
+
+### Evaluation
+
+Run `python src/evaluate.py` (add `--n 50` for a quick run) to compare the fine-tuned model
+against the two baselines (most frequent cause, zero-shot Qwen). Results are written to
+`results/resultats_evaluation.json`.
 
 ---
 

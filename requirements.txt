@@ -1,0 +1,7 @@
+torch
+transformers
+peft
+accelerate
+rouge_score
+bert-score
+numpy

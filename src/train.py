@@ -28,8 +28,9 @@ from dataset import HDFSLogDataset, HDFSDataCollator
 #  CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 MODEL_NAME    = "Qwen/Qwen2.5-1.5B-Instruct"
-JSON_PATH     = "hdfs_dataset.json"
-OUTPUT_DIR    = "/content/modele_hdfs"
+BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
+JSON_PATH     = os.path.join(BASE_DIR, "..", "data", "hdfs_dataset.json")
+OUTPUT_DIR    = os.path.join(BASE_DIR, "..", "modele_hdfs")
 
 # Entraînement
 MAX_LENGTH    = 512
