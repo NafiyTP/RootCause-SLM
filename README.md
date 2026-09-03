@@ -139,9 +139,32 @@ Best checkpoint: epoch 5 (val_loss = 0.099). Full history in `modele_hdfs/histor
 
 ### Evaluation
 
-Run `python src/evaluate.py` (add `--n 50` for a quick run) to compare the fine-tuned model
-against the two baselines (most frequent cause, zero-shot Qwen). Results are written to
-`results/resultats_evaluation.json`.
+Evaluated on the full held-out test set (527 examples), comparing the fine-tuned model against
+two baselines: a naive baseline that always repeats the most frequent cause from the training
+set, and Qwen2.5-1.5B-Instruct zero-shot (no fine-tuning).
+
+| Model | JSON valid | ROUGE-L (cause) | ROUGE-L (reasoning) | BERTScore (cause) | BERTScore (reasoning) |
+|-------|-----------:|-----------------:|---------------------:|--------------------:|------------------------:|
+| Baseline (most frequent cause)     | 100% | 0.688 | 0.000 | 0.914 | 0.000 |
+| Qwen2.5-1.5B zero-shot              |   0% | 0.152 | 0.000 | 0.682 | 0.000 |
+| **Qwen2.5-1.5B fine-tuned (LoRA)**  | **100%** | 0.433 | **0.616** | 0.784 | **0.878** |
+
+Fine-tuning fixes a reliability problem the base model has no answer for: zero-shot Qwen never
+outputs valid JSON (0%), against 100% for the fine-tuned model. This matters because the output
+is meant to be consumed by downstream automation, not read by a human. On reasoning, fine-tuning
+is where nearly all of the value comes from (ROUGE-L 0.616, BERTScore 0.878): neither baseline
+produces usable reasoning at all.
+
+On the cause field alone, the naive baseline actually scores higher than the fine-tuned model.
+This isn't the baseline being smarter, it's an artifact of the dataset: HDFS logs are highly
+repetitive (96.5% normal, a narrow set of recurring anomaly causes), so always repeating the
+single most common answer happens to score well on this one sub-metric, without producing any
+reasoning or generalizing to less frequent causes. Across the full task, the fine-tuned model is
+the only one of the three that's both reliable in format and semantically relevant.
+
+Run `python src/evaluate.py` (add `--n 50` for a quick run) to reproduce. Results are written
+incrementally to `results/resultats_evaluation.json`, and the script resumes from there if
+interrupted.
 
 ---
 

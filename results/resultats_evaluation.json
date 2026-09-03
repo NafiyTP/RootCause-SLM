@@ -1,0 +1,26 @@
+[
+  {
+    "nom": "Baseline (cause fréquente)",
+    "json_valid": 1.0,
+    "rouge_cause": 0.688,
+    "rouge_raison": 0.0,
+    "bert_cause": 0.9136,
+    "bert_raison": 0.0
+  },
+  {
+    "nom": "Qwen2.5-1.5B zero-shot",
+    "json_valid": 0.0,
+    "rouge_cause": 0.1518,
+    "rouge_raison": 0.0,
+    "bert_cause": 0.6819,
+    "bert_raison": 0.0
+  },
+  {
+    "nom": "Qwen2.5-1.5B fine-tuné (toi)",
+    "json_valid": 1.0,
+    "rouge_cause": 0.4332,
+    "rouge_raison": 0.6161,
+    "bert_cause": 0.7839,
+    "bert_raison": 0.8782
+  }
+]

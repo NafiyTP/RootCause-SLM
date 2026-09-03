@@ -11,6 +11,11 @@ On compare aussi avec deux baselines :
   - Baseline 1 : répéter la cause la plus fréquente du training set
   - Baseline 2 : Qwen2.5-1.5B zero-shot (sans fine-tuning)
 
+Le script sauvegarde les résultats de chaque modèle au fur et à mesure dans
+results/resultats_evaluation.json. Si le script est relancé après un crash,
+il recharge ce fichier et saute les modèles déjà évalués — aucun calcul
+n'est perdu.
+
 Usage :
     python evaluate.py
     python evaluate.py --n 50   # tester sur 50 exemples seulement
@@ -26,7 +31,7 @@ from peft import PeftModel
 from rouge_score import rouge_scorer
 from bert_score import score as bert_score
 
-# ─────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────
 #  CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 import os
@@ -81,7 +86,7 @@ def charger_modele(lora_dir: str | None = None):
 
     model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL,
-        dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+        torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
         device_map={"": DEVICE},
     )
     if lora_dir:
@@ -244,12 +249,6 @@ Lecture des métriques :
   raison       → évaluation sur le raisonnement complet en 3 étapes
 """)
 
-    os.makedirs(RESULTS_DIR, exist_ok=True)
-    out_path = os.path.join(RESULTS_DIR, "resultats_evaluation.json")
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(resultats, f, ensure_ascii=False, indent=2)
-    print(f"📄 Résultats sauvegardés dans {out_path}")
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  7. MAIN
@@ -267,36 +266,66 @@ def main():
     causes_ref  = [d["cause"]        for d in test_data]
     raison_ref  = [d["raisonnement"] for d in test_data]
 
+    os.makedirs(RESULTS_DIR, exist_ok=True)
+    out_path = os.path.join(RESULTS_DIR, "resultats_evaluation.json")
+
+    # Reprise : si un run précédent a déjà produit des résultats partiels
+    # (ex: crash pendant le chargement du 3e modèle), on les recharge et on
+    # ne recalcule pas ce qui est déjà fait.
     resultats = []
+    noms_deja_faits = set()
+    if os.path.exists(out_path):
+        with open(out_path, encoding="utf-8") as f:
+            resultats = json.load(f)
+        noms_deja_faits = {r["nom"] for r in resultats}
+        if noms_deja_faits:
+            print(f"↩️  Reprise : {len(noms_deja_faits)} résultat(s) déjà calculé(s), conservés : {sorted(noms_deja_faits)}")
+
+    def sauvegarder():
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(resultats, f, ensure_ascii=False, indent=2)
+        print(f"   📄 Sauvegardé dans {out_path}")
 
     # ── Baseline 1 : cause fréquente ─────────────────────────────────────────
-    print("\n🔄 Baseline : cause la plus fréquente...")
-    cause_freq = cause_la_plus_frequente(TRAIN_JSON)
-    print(f"   Cause baseline : '{cause_freq}'")
+    if "Baseline (cause fréquente)" not in noms_deja_faits:
+        print("\n🔄 Baseline : cause la plus fréquente...")
+        cause_freq = cause_la_plus_frequente(TRAIN_JSON)
+        print(f"   Cause baseline : '{cause_freq}'")
 
-    causes_baseline = [cause_freq] * len(test_data)
-    raison_baseline = [""] * len(test_data)
+        causes_baseline = [cause_freq] * len(test_data)
+        raison_baseline = [""] * len(test_data)
 
-    r_baseline = evaluer(
-        "Baseline (cause fréquente)",
-        causes_baseline, raison_baseline,
-        causes_ref, raison_ref,
-        len(test_data), len(test_data),
-    )
-    resultats.append(r_baseline)
+        r_baseline = evaluer(
+            "Baseline (cause fréquente)",
+            causes_baseline, raison_baseline,
+            causes_ref, raison_ref,
+            len(test_data), len(test_data),
+        )
+        resultats.append(r_baseline)
+        sauvegarder()
+    else:
+        print("\n⏭️  Baseline déjà calculée, on saute.")
 
     # ── Baseline 2 : zero-shot ────────────────────────────────────────────────
-    model_zs, tok_zs = charger_modele(lora_dir=None)
-    r_zs = evaluer_modele("Qwen2.5-1.5B zero-shot", model_zs, tok_zs, test_data)
-    resultats.append(r_zs)
-    del model_zs
-    if DEVICE == "cuda":
-        torch.cuda.empty_cache()
+    if "Qwen2.5-1.5B zero-shot" not in noms_deja_faits:
+        model_zs, tok_zs = charger_modele(lora_dir=None)
+        r_zs = evaluer_modele("Qwen2.5-1.5B zero-shot", model_zs, tok_zs, test_data)
+        resultats.append(r_zs)
+        sauvegarder()
+        del model_zs
+        if DEVICE == "cuda":
+            torch.cuda.empty_cache()
+    else:
+        print("\n⏭️  Zero-shot déjà calculé, on saute.")
 
     # ── Modèle fine-tuné ─────────────────────────────────────────────────────
-    model_ft, tok_ft = charger_modele(lora_dir=LORA_DIR)
-    r_ft = evaluer_modele("Qwen2.5-1.5B fine-tuné (toi)", model_ft, tok_ft, test_data)
-    resultats.append(r_ft)
+    if "Qwen2.5-1.5B fine-tuné (toi)" not in noms_deja_faits:
+        model_ft, tok_ft = charger_modele(lora_dir=LORA_DIR)
+        r_ft = evaluer_modele("Qwen2.5-1.5B fine-tuné (toi)", model_ft, tok_ft, test_data)
+        resultats.append(r_ft)
+        sauvegarder()
+    else:
+        print("\n⏭️  Fine-tuné déjà calculé, on saute.")
 
     # ── Résultats ────────────────────────────────────────────────────────────
     afficher(resultats)

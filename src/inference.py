@@ -50,7 +50,7 @@ def charger_modele():
  
     model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL,
-        dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
+        torch_dtype=torch.float16 if DEVICE == "cuda" else torch.float32,
         device_map={"": DEVICE},
     )
  
