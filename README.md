@@ -1,173 +1,133 @@
-# Rootcause-SLM
+# RootCause-SLM
 
-![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
-![PyTorch](https://img.shields.io/badge/PyTorch-Custom%20Data%20Pipeline-EE4C2C?logo=pytorch)
-![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-F9AB00?logo=huggingface)
-![License](https://img.shields.io/badge/License-MIT-green)
+I fine-tuned Qwen2.5-1.5B-Instruct with LoRA to explain HDFS log lines: given a line and its
+Normal/Anomaly label, it returns a short cause and a 3-step reasoning as JSON. The idea was to
+see how far a small model running locally can get, since sending infrastructure logs to an
+external API is often not an option.
 
-Fine-tuning of Qwen2.5-1.5B for anomaly detection and root cause analysis on HDFS logs — fully local, no external API at inference time.
+The training annotations come from a larger model (Llama 3.3-70B through Groq), so this is a
+teacher-student setup: the 70B model writes the explanations once, the 1.5B model learns to
+reproduce them.
 
----
+## Data
 
-## Motivation
+Logs and labels come from [Loghub](https://github.com/logpai/loghub) (HDFS_v1, a Yahoo cluster,
+2008). Labels are per block in `anomaly_label.csv`, and I give each line the label of its block.
+Llama 3.3-70B only writes the `cause` and `raisonnement` fields; it never decides the label.
+The annotations are in French, which is why the prompts in the code are in French too.
 
-Sending server logs to GPT-4 or Claude raises an obvious problem in enterprise environments: logs contain sensitive infrastructure data. This project explores an alternative — a small model (1.5B parameters) fine-tuned on domain-specific data, running locally and producing structured output that can be consumed directly by downstream automation.
+| Split | Lines | Normal / Anomaly |
+|---|---:|---|
+| Train (`data/hdfs_dataset.json`), 85/15 train/val | 1,999 | 1,930 / 69 |
+| Test (`data/hdfs_test_dataset.json`) | 527 | 277 / 250 |
 
-The approach is inspired by teacher-student distillation: a large model (Llama 3.3-70B via Groq) generates annotations, a small model learns from them. The result is a specialized, lightweight model that requires no internet access at inference time.
+The test set was built from blocks that never appear in the training set, with anomalies
+oversampled so the metrics say something about them.
 
----
-
-## Dataset
-
-Source: [Loghub](https://github.com/logpai/loghub) — 2,000 real HDFS log lines collected from a Yahoo cluster in 2008, with `Normal`/`Anomaly` labels provided by [Loglizer](https://github.com/logpai/loglizer).
-
-**Class imbalance:** 96.5% Normal / 3.5% Anomaly, addressed with `WeightedRandomSampler` to oversample anomalies during training.
-
-**Annotation:** each log is enriched by Llama 3.3-70B with a `cause` and a 3-step `reasoning`. Ground truth labels always come from Loglizer — the LLM only generates the explanation text.
+Example entry:
 
 ```json
 {
-  "log": "081109 203615 148 WARN dfs.DataNode: Got exception while serving blk_38865049...",
+  "log": "081109 203615 148 WARN dfs.DataNode$DataXceiver: Got exception while serving blk_38865049...",
   "label": "Anomaly",
-  "cause": "Network exception during block transfer between DataNodes",
-  "reasoning": "Step 1: The DataNode was attempting to serve a block... Step 2: ..."
+  "cause": "...",
+  "raisonnement": "Étape 1 : ... Étape 2 : ... Étape 3 : ..."
 }
 ```
 
----
+## Training
 
-## Pipeline
+- Qwen2.5-1.5B-Instruct, LoRA r=16, alpha=32 on `q_proj`, `k_proj`, `v_proj`, `o_proj`
+  (4.36M trainable parameters, 0.28% of the model)
+- ChatML prompt, loss only on the answer tokens (prompt tokens set to -100)
+- anomalies are 3.5% of the training lines, so a `WeightedRandomSampler` draws both classes
+  about equally often
+- AdamW, lr 2e-4, 5% warmup then cosine decay, effective batch size 16, 5 epochs on a Colab T4
 
-```
-hdfs_dataset.json
-      │
-      ▼
- dataset.py       Tokenization, ChatML formatting, label masking (-100)
-      │
-      ▼
-  train.py        LoRA on Qwen2.5-1.5B, WeightedRandomSampler, cosine LR schedule
-      │
-      ▼
-modele_hdfs/      Saved LoRA adapters
-      │
-      ▼
- inference.py     Log in → {cause, reasoning} JSON out
-```
+| Epoch | Train loss | Val loss | Val perplexity |
+|---:|---:|---:|---:|
+| 1 | 0.419 | 0.176 | 1.19 |
+| 2 | 0.094 | 0.123 | 1.13 |
+| 3 | 0.060 | 0.117 | 1.12 |
+| 4 | 0.050 | 0.100 | 1.10 |
+| 5 | 0.049 | 0.099 | 1.10 |
 
----
+The adapter from epoch 5 is in `modele_hdfs/`.
 
-## Technical choices
+## Evaluation
 
-**Qwen2.5-1.5B-Instruct** — Alibaba Cloud, Apache 2.0 license, trained on 18 trillion tokens. Chosen for its strong reasoning-to-size ratio and because it fits on a T4 GPU (16 GB).
+I compare the fine-tuned model with three simple baselines and with the base model prompted
+zero-shot and few-shot, on all 527 test lines. Decoding is greedy and the fine-tuned model gets
+exactly the training prompt. The references are the Llama 3.3-70B annotations, so these scores
+measure how close each system gets to the teacher, not whether the cause is actually right.
 
-**LoRA (r=16, alpha=32)** — instead of updating 1.5B parameters, we train two small matrices $A \in \mathbb{R}^{r \times d}$ and $B \in \mathbb{R}^{d \times r}$ such that $\Delta W = BA$. Only 4.36M parameters are trained (0.28% of total), on the `q_proj`, `k_proj`, `v_proj`, `o_proj` attention layers.
+| System | Valid JSON | Cause exact match | ROUGE-L cause | ROUGE-L reasoning | BERTScore reasoning |
+|---|---:|---:|---:|---:|---:|
+| Most frequent cause | 100% | 0.461 | 0.594 | 0.347 | 0.797 |
+| Majority cause per label | 100% | 0.461 | 0.589 | 0.356 | 0.783 |
+| Template retrieval | 100% | 0.548 | 0.860 | 0.456 | 0.825 |
+| Qwen2.5-1.5B zero-shot | 6.5% | 0.000 | 0.008 | 0.017 | 0.048 |
+| Qwen2.5-1.5B few-shot (3 examples) | 100% | 0.000 | 0.393 | 0.292 | 0.778 |
+| **Qwen2.5-1.5B + LoRA** | **100%** | **0.617** | **0.874** | **0.506** | **0.836** |
 
-**Label masking** — cross-entropy is computed only on response tokens. Prompt tokens are set to `-100` (ignored by PyTorch). Without this, the model tries to predict its own context — wasted gradient.
+Template retrieval is the baseline that matters: for each test line it copies the annotation
+of a training line with the same message template and label. The fine-tuned model beats it by
++0.050 ROUGE-L on the reasoning (paired bootstrap 95% CI [0.038, 0.064]) and doubles the exact
+cause match on anomalies (0.284 vs 0.140). On the reasoning of anomalous lines, though, the two
+are tied (0.455 vs 0.461).
 
-**Dynamic padding** — the collator pads to the longest sequence in each batch, not to `max_length`. Saves VRAM at every training step.
+The base model mostly fails on format in zero-shot: it wraps the JSON in code fences, breaks
+strings over several lines or runs out of tokens. Three examples in the prompt fix the format,
+but it then paraphrases the causes and never matches the reference wording.
 
----
+Per-label numbers, confidence intervals, every prediction and side-by-side examples are in
+[`results/eval_n527/`](results/eval_n527/).
+
+Note: the first version of this README reported numbers from a 20-example check (all Normal
+lines). A resume bug in the old evaluation script made the full run reuse those results.
+The table above replaces them.
+
+## Limitations
+
+This is the part I would change first if I redid the project.
+
+- **The labels are per block, the input is a single line.** A block is anomalous as a whole,
+  and most of its lines are perfectly ordinary. All 250 test anomalies are INFO lines whose
+  templates also appear with the Normal label. There is nothing in the line itself that explains
+  the anomaly, so the teacher often makes up a cause, and about a quarter of its explanations
+  use the label itself as the evidence. The model learns to justify a label, not to find a cause.
+- **Small and repetitive data.** 69 training anomalies over 29 different causes, and only 15
+  message templates overall. The validation perplexity is already 1.19 after one epoch, and on
+  the test set the model only uses 8 distinct causes (the references have 19).
+- **The metrics compare to the teacher, not to the truth.** There are no human-validated root
+  causes for this dataset.
+- **It is not a detector.** The label is an input. `src/inference.py` needs it from somewhere else.
+
+A better design would group lines by `block_id` into sessions, detect anomalies at the session
+level (DeepLog style, or a classifier on event counts), and only then ask the small model to
+explain the flagged session with its full context.
 
 ## Repo structure
 
 ```
-.
-├── data/
-│   ├── hdfs_dataset.json        # training set (1999 annotated logs)
-│   └── hdfs_test_dataset.json   # held-out test set (527 logs)
-├── src/
-│   ├── dataset.py      # HDFSLogDataset + HDFSDataCollator
-│   ├── train.py        # training loop + LoRA
-│   ├── evaluate.py     # compares fine-tuned model vs baselines (ROUGE-L, BERTScore)
-│   └── inference.py    # single-log inference with the fine-tuned model
-├── modele_hdfs/         # LoRA adapter weights (generated after training)
-├── results/             # evaluation output (resultats_evaluation.json)
-├── requirements.txt
-└── README.md
+data/                  train and test sets (JSON and CSV)
+modele_hdfs/           LoRA adapter, tokenizer, training history
+results/eval_n527/     metrics, predictions and examples on the full test set
+src/dataset.py         Dataset and collator (ChatML, loss masking, dynamic padding)
+src/train.py           LoRA training with the weighted sampler
+src/evaluate.py        baselines, zero-shot, few-shot and fine-tuned evaluation
+src/inference.py       explain one log line with the fine-tuned model
+evaluation_colab.ipynb runs the evaluation on a Colab T4
 ```
-
----
 
 ## Usage
 
-Install dependencies:
-
 ```bash
 pip install -r requirements.txt
+
+python src/train.py                      # training (GPU)
+python src/evaluate.py                   # full evaluation (GPU, about 30 min on a T4)
+python src/evaluate.py --n 20            # quick check
+python src/evaluate.py --no-llm          # baselines only, CPU
+python src/inference.py --log "081109 203615 148 WARN dfs.DataNode\$DataXceiver: Got exception while serving blk_..." --label Anomaly
 ```
-
-Training — on Google Colab (T4 GPU recommended):
-
-```python
-!python src/train.py
-```
-
-Local (CPU, slow):
-
-```bash
-python src/train.py
-```
-
-Evaluation (compares fine-tuned model to the two baselines):
-
-```bash
-python src/evaluate.py          # full test set
-python src/evaluate.py --n 50   # quick run on 50 examples
-```
-
-Inference on a single log:
-
-```bash
-python src/inference.py --log "081109 203615 148 WARN dfs.DataNode: Got exception while serving blk_38865049..."
-```
-
----
-
-## Results
-
-### Training
-
-| Epoch | Train loss | Val loss | Train PPL | Val PPL |
-|-------|-----------|----------|-----------|---------|
-| 1     | 0.419     | 0.176    | 1.52      | 1.19    |
-| 2     | 0.094     | 0.123    | 1.10      | 1.13    |
-| 3     | 0.060     | 0.117    | 1.06      | 1.12    |
-| 4     | 0.050     | 0.100    | 1.05      | 1.10    |
-| 5     | 0.049     | 0.099    | 1.05      | 1.10    |
-
-Best checkpoint: epoch 5 (val_loss = 0.099). Full history in `modele_hdfs/historique.json`.
-
-### Evaluation
-
-Evaluated on the full held-out test set (527 examples), comparing the fine-tuned model against
-two baselines: a naive baseline that always repeats the most frequent cause from the training
-set, and Qwen2.5-1.5B-Instruct zero-shot (no fine-tuning).
-
-| Model | JSON valid | ROUGE-L (cause) | ROUGE-L (reasoning) | BERTScore (cause) | BERTScore (reasoning) |
-|-------|-----------:|-----------------:|---------------------:|--------------------:|------------------------:|
-| Baseline (most frequent cause)     | 100% | 0.688 | 0.000 | 0.914 | 0.000 |
-| Qwen2.5-1.5B zero-shot              |   0% | 0.152 | 0.000 | 0.682 | 0.000 |
-| **Qwen2.5-1.5B fine-tuned (LoRA)**  | **100%** | 0.433 | **0.616** | 0.784 | **0.878** |
-
-Fine-tuning fixes a reliability problem the base model has no answer for: zero-shot Qwen never
-outputs valid JSON (0%), against 100% for the fine-tuned model. This matters because the output
-is meant to be consumed by downstream automation, not read by a human. On reasoning, fine-tuning
-is where nearly all of the value comes from (ROUGE-L 0.616, BERTScore 0.878): neither baseline
-produces usable reasoning at all.
-
-On the cause field alone, the naive baseline actually scores higher than the fine-tuned model.
-This isn't the baseline being smarter, it's an artifact of the dataset: HDFS logs are highly
-repetitive (96.5% normal, a narrow set of recurring anomaly causes), so always repeating the
-single most common answer happens to score well on this one sub-metric, without producing any
-reasoning or generalizing to less frequent causes. Across the full task, the fine-tuned model is
-the only one of the three that's both reliable in format and semantically relevant.
-
-Run `python src/evaluate.py` (add `--n 50` for a quick run) to reproduce. Results are written
-incrementally to `results/resultats_evaluation.json`, and the script resumes from there if
-interrupted.
-
----
-
-## Limitations
-
-The dataset is small (2,000 examples) and not very diverse — HDFS logs are highly repetitive, which explains the very low perplexity from epoch 1. Generalization to other log systems (BGL, Thunderbird) has not been evaluated and would likely show lower performance, since the model has only seen HDFS-specific patterns.

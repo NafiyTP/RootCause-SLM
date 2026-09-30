@@ -1,0 +1,200 @@
+[
+  {
+    "name": "Most frequent cause",
+    "n": 527,
+    "json_strict": 1.0,
+    "json_strict__Normal": 1.0,
+    "json_strict__Anomaly": 1.0,
+    "json_lenient": 1.0,
+    "json_lenient__Normal": 1.0,
+    "json_lenient__Anomaly": 1.0,
+    "cause_exact": 0.4611,
+    "cause_exact__Normal": 0.8773,
+    "cause_exact__Anomaly": 0.0,
+    "rouge_cause": 0.5941,
+    "rouge_cause__Normal": 0.9232,
+    "rouge_cause__Anomaly": 0.2296,
+    "rouge_reason": 0.3473,
+    "rouge_reason__Normal": 0.4377,
+    "rouge_reason__Anomaly": 0.2471,
+    "bert_cause": 0.8624,
+    "bert_cause__Normal": 0.9751,
+    "bert_cause__Anomaly": 0.7376,
+    "bert_reason": 0.7968,
+    "bert_reason__Normal": 0.8185,
+    "bert_reason__Anomaly": 0.7727,
+    "rouge_reason_ci95": [
+      0.3378,
+      0.3572
+    ],
+    "rouge_cause_ci95": [
+      0.5612,
+      0.6275
+    ]
+  },
+  {
+    "name": "Label majority",
+    "n": 527,
+    "json_strict": 1.0,
+    "json_strict__Normal": 1.0,
+    "json_strict__Anomaly": 1.0,
+    "json_lenient": 1.0,
+    "json_lenient__Normal": 1.0,
+    "json_lenient__Anomaly": 1.0,
+    "cause_exact": 0.4611,
+    "cause_exact__Normal": 0.8773,
+    "cause_exact__Anomaly": 0.0,
+    "rouge_cause": 0.5891,
+    "rouge_cause__Normal": 0.9232,
+    "rouge_cause__Anomaly": 0.2188,
+    "rouge_reason": 0.3564,
+    "rouge_reason__Normal": 0.4377,
+    "rouge_reason__Anomaly": 0.2663,
+    "bert_cause": 0.8686,
+    "bert_cause__Normal": 0.9751,
+    "bert_cause__Anomaly": 0.7506,
+    "bert_reason": 0.7827,
+    "bert_reason__Normal": 0.8185,
+    "bert_reason__Anomaly": 0.7431,
+    "rouge_reason_ci95": [
+      0.3475,
+      0.3657
+    ],
+    "rouge_cause_ci95": [
+      0.5563,
+      0.6231
+    ]
+  },
+  {
+    "name": "Template retrieval (kNN)",
+    "n": 527,
+    "json_strict": 1.0,
+    "json_strict__Normal": 1.0,
+    "json_strict__Anomaly": 1.0,
+    "json_lenient": 1.0,
+    "json_lenient__Normal": 1.0,
+    "json_lenient__Anomaly": 1.0,
+    "cause_exact": 0.5484,
+    "cause_exact__Normal": 0.917,
+    "cause_exact__Anomaly": 0.14,
+    "rouge_cause": 0.8595,
+    "rouge_cause__Normal": 0.9627,
+    "rouge_cause__Anomaly": 0.7453,
+    "rouge_reason": 0.4556,
+    "rouge_reason__Normal": 0.4512,
+    "rouge_reason__Anomaly": 0.4605,
+    "bert_cause": 0.9525,
+    "bert_cause__Normal": 0.9863,
+    "bert_cause__Anomaly": 0.915,
+    "bert_reason": 0.8252,
+    "bert_reason__Normal": 0.8145,
+    "bert_reason__Anomaly": 0.8371,
+    "rouge_reason_ci95": [
+      0.4434,
+      0.4674
+    ],
+    "rouge_cause_ci95": [
+      0.8392,
+      0.878
+    ]
+  },
+  {
+    "name": "Qwen2.5-1.5B zero-shot",
+    "n": 527,
+    "json_strict": 0.0645,
+    "json_strict__Normal": 0.0,
+    "json_strict__Anomaly": 0.136,
+    "json_lenient": 0.0645,
+    "json_lenient__Normal": 0.0,
+    "json_lenient__Anomaly": 0.136,
+    "cause_exact": 0.0,
+    "cause_exact__Normal": 0.0,
+    "cause_exact__Anomaly": 0.0,
+    "rouge_cause": 0.0077,
+    "rouge_cause__Normal": 0.0,
+    "rouge_cause__Anomaly": 0.0163,
+    "rouge_reason": 0.0168,
+    "rouge_reason__Normal": 0.0,
+    "rouge_reason__Anomaly": 0.0354,
+    "bert_cause": 0.0487,
+    "bert_cause__Normal": 0.0,
+    "bert_cause__Anomaly": 0.1027,
+    "bert_reason": 0.0483,
+    "bert_reason__Normal": 0.0,
+    "bert_reason__Anomaly": 0.1019,
+    "rouge_reason_ci95": [
+      0.0113,
+      0.0226
+    ],
+    "rouge_cause_ci95": [
+      0.0052,
+      0.0104
+    ]
+  },
+  {
+    "name": "Qwen2.5-1.5B few-shot (3)",
+    "n": 527,
+    "json_strict": 1.0,
+    "json_strict__Normal": 1.0,
+    "json_strict__Anomaly": 1.0,
+    "json_lenient": 1.0,
+    "json_lenient__Normal": 1.0,
+    "json_lenient__Anomaly": 1.0,
+    "cause_exact": 0.0,
+    "cause_exact__Normal": 0.0,
+    "cause_exact__Anomaly": 0.0,
+    "rouge_cause": 0.3928,
+    "rouge_cause__Normal": 0.564,
+    "rouge_cause__Anomaly": 0.2033,
+    "rouge_reason": 0.2923,
+    "rouge_reason__Normal": 0.3274,
+    "rouge_reason__Anomaly": 0.2535,
+    "bert_cause": 0.7924,
+    "bert_cause__Normal": 0.8386,
+    "bert_cause__Anomaly": 0.7413,
+    "bert_reason": 0.7782,
+    "bert_reason__Normal": 0.7901,
+    "bert_reason__Anomaly": 0.765,
+    "rouge_reason_ci95": [
+      0.2862,
+      0.2992
+    ],
+    "rouge_cause_ci95": [
+      0.3733,
+      0.4126
+    ]
+  },
+  {
+    "name": "Qwen2.5-1.5B + LoRA (ours)",
+    "n": 527,
+    "json_strict": 1.0,
+    "json_strict__Normal": 1.0,
+    "json_strict__Anomaly": 1.0,
+    "json_lenient": 1.0,
+    "json_lenient__Normal": 1.0,
+    "json_lenient__Anomaly": 1.0,
+    "cause_exact": 0.6167,
+    "cause_exact__Normal": 0.917,
+    "cause_exact__Anomaly": 0.284,
+    "rouge_cause": 0.8736,
+    "rouge_cause__Normal": 0.9627,
+    "rouge_cause__Anomaly": 0.775,
+    "rouge_reason": 0.5061,
+    "rouge_reason__Normal": 0.5519,
+    "rouge_reason__Anomaly": 0.4554,
+    "bert_cause": 0.9582,
+    "bert_cause__Normal": 0.9863,
+    "bert_cause__Anomaly": 0.9271,
+    "bert_reason": 0.8358,
+    "bert_reason__Normal": 0.8354,
+    "bert_reason__Anomaly": 0.8362,
+    "rouge_reason_ci95": [
+      0.4935,
+      0.5194
+    ],
+    "rouge_cause_ci95": [
+      0.8535,
+      0.8926
+    ]
+  }
+]
