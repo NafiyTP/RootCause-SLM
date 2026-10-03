@@ -1,0 +1,69 @@
+{
+  "lines": 104815,
+  "blocks": 7940,
+  "train_blocks": 6352,
+  "test_blocks": 1588,
+  "test_anomaly_rate": 0.0573,
+  "templates": 20,
+  "test_blocks_with_unseen_template": 2,
+  "lines_per_second_cpu": 102124,
+  "top_anomaly_templates": [
+    [
+      "INFO dfs.DataNode$BlockReceiver: Receiving empty packet for block <BLK>",
+      2.58
+    ],
+    [
+      "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+      1.97
+    ],
+    [
+      "INFO dfs.DataNode: <IP> Starting thread to transfer block <BLK> to <IP>",
+      1.5
+    ],
+    [
+      "INFO dfs.FSNamesystem: BLOCK* ask <IP> to replicate <BLK> to datanode(s) <IP>",
+      1.5
+    ],
+    [
+      "INFO dfs.DataNode$DataTransfer: <IP>:Transmitted block <BLK> to /<IP>",
+      0.88
+    ],
+    [
+      "INFO dfs.DataNode$DataXceiver: <IP> Served block <BLK> to /<IP>",
+      0.69
+    ],
+    [
+      "INFO dfs.DataNode$DataXceiver: Received block <BLK> src: /<IP> dest: /<IP> of size <N>",
+      0.56
+    ],
+    [
+      "INFO dfs.DataNode$DataXceiver: writeBlock <BLK> received exception java.io.IOException: Could not read from stream",
+      0.51
+    ]
+  ],
+  "detectors": {
+    "WARN/ERROR rule": {
+      "precision": 1.0,
+      "recall": 0.011,
+      "f1": 0.0217,
+      "flagged": 1,
+      "true_anomalies": 91
+    },
+    "PCA (unsupervised)": {
+      "precision": 0.9804,
+      "recall": 0.5495,
+      "f1": 0.7042,
+      "flagged": 51,
+      "true_anomalies": 91,
+      "fit_s": 0.02
+    },
+    "Logistic regression": {
+      "precision": 0.9818,
+      "recall": 0.5934,
+      "f1": 0.7397,
+      "flagged": 55,
+      "true_anomalies": 91,
+      "fit_s": 0.03
+    }
+  }
+}

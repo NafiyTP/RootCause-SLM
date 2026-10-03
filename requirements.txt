@@ -6,3 +6,4 @@ rouge_score
 bert-score==0.3.13
 torchao>=0.16.0
 numpy
+scikit-learn
