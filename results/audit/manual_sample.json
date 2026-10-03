@@ -1,0 +1,935 @@
+[
+ {
+  "block_id": "blk_-2437547284244111497",
+  "label": "Anomaly",
+  "log": "081109 203824 257 INFO dfs.DataNode$DataXceiver: Receiving block blk_-2437547284244111497 src: /10.251.106.10:58233 dest: /10.251.106.10:50010",
+  "block_lines": 27,
+  "evidence": "addStoredBlock for a block of no file",
+  "evidence_detail": [
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: addStoredBlock request received for <BLK> on <IP> size <N> But it does not belong to any file."
+  ],
+  "teacher": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier l'anomalie. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter une connexion non autorisée. Étape 3 : Identification de l'événement comme une anomalie en raison d'une connexion inattendue",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier l'anomalie. Étape 2 : Vérification de l'adresse source et de destination pour détecter des accès non autorisés. Étape 3 : Détection d'une connexion inhabituelle vers le DataNode",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8157007602552620601",
+  "label": "Anomaly",
+  "log": "081109 203808 251 INFO dfs.DataNode$DataXceiver: Receiving block blk_8157007602552620601 src: /10.250.7.146:41369 dest: /10.250.7.146:50010",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Connexion réseau anormale",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les anomalies. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les connexions inhabituelles. Étape 3 : Évaluation du comportement du DataNode pour déterminer si la connexion est légitime ou non",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les connexions anormales. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les accès non autorisés. Étape 3 : Évaluation du protocole de communication utilisé pour déterminer si la connexion est sécurisée ou non.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8764693703744759187",
+  "label": "Anomaly",
+  "log": "081109 203837 267 INFO dfs.DataNode$DataXceiver: Receiving block blk_8764693703744759187 src: /10.250.19.16:46038 dest: /10.250.19.16:50010",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Connexion réseau anormale",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les anomalies. Étape 2 : Vérification de l'adresse source et de destination pour détecter les connexions inhabituelles. Étape 3 : Détection d'une connexion réseau anormale entre le DataNode et le client",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les connexions anormales. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les accès non autorisés. Étape 3 : Évaluation du protocole de communication utilisé pour déterminer si la connexion est sécurisée ou non.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-4845663345676718484",
+  "label": "Anomaly",
+  "log": "081109 204258 26 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000225_0/part-00225. blk_-4845663345676718484",
+  "block_lines": 2,
+  "evidence": "write never completed",
+  "evidence_detail": [
+   "INFO dfs.DataNode$PacketResponder: PacketResponder <N> for block <BLK> terminating",
+   "INFO dfs.DataNode$PacketResponder: Received block <BLK> of size <N> from /<IP>",
+   "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: <IP> is added to <BLK> size <N>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une anomalie dans le système. Étape 3 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère que le problème est lié à l'allocation de blocs dans le système de fichiers HDFS.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_6020383172603634019",
+  "label": "Anomaly",
+  "log": "081109 203919 287 INFO dfs.DataNode$DataXceiver: Receiving block blk_6020383172603634019 src: /10.250.7.96:42069 dest: /10.250.7.96:50010",
+  "block_lines": 27,
+  "evidence": "addStoredBlock for a block of no file",
+  "evidence_detail": [
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: addStoredBlock request received for <BLK> on <IP> size <N> But it does not belong to any file."
+  ],
+  "teacher": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier l'anomalie. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter des accès non autorisés. Étape 3 : Détection d'une connexion inhabituelle vers le DataNode",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion entrante non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les connexions entrantes. Étape 2 : Vérification de l'adresse IP source pour détecter les accès non autorisés. Étape 3 : Détection d'une adresse IP inconnue ou non autorisée",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_2486178942380652748",
+  "label": "Anomaly",
+  "log": "081109 204013 28 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000398_0/part-00398. blk_2486178942380652748",
+  "block_lines": 27,
+  "evidence": "addStoredBlock for a block of no file",
+  "evidence_detail": [
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: addStoredBlock request received for <BLK> on <IP> size <N> But it does not belong to any file."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier l'erreur. Étape 2 : Vérification de l'espace disque disponible pour l'allocation de blocs. Étape 3 : Vérification des paramètres de configuration de HDFS pour les allocations de blocs",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_3584224065406961324",
+  "label": "Anomaly",
+  "log": "081109 204611 27 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000353_0/part-00353. blk_3584224065406961324",
+  "block_lines": 28,
+  "evidence": "extra replication",
+  "evidence_detail": [
+   "INFO dfs.DataNode$DataTransfer: <IP>:Transmitted block <BLK> to /<IP>",
+   "INFO dfs.DataNode: <IP> Starting thread to transfer block <BLK> to <IP>",
+   "INFO dfs.FSNamesystem: BLOCK* ask <IP> to replicate <BLK> to datanode(s) <IP>",
+   "INFO dfs.DataNode$DataXceiver: Received block <BLK> src: /<IP> dest: /<IP> of size <N>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème lors de l'allocation d'un bloc pour un fichier temporaire. Étape 3 : Cela peut être dû à une erreur de configuration ou à une erreur de système de fichiers",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_6505703663224043518",
+  "label": "Anomaly",
+  "log": "081109 204531 29 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000337_0/part-00337. blk_6505703663224043518",
+  "block_lines": 2,
+  "evidence": "write never completed",
+  "evidence_detail": [
+   "INFO dfs.DataNode$PacketResponder: PacketResponder <N> for block <BLK> terminating",
+   "INFO dfs.DataNode$PacketResponder: Received block <BLK> of size <N> from /<IP>",
+   "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: <IP> is added to <BLK> size <N>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue pour une raison inconnue. Étape 3 : Le système enregistre l'événement comme une anomalie.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_6016970584388797504",
+  "label": "Anomaly",
+  "log": "081109 204525 35 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000410_0/part-00410. blk_6016970584388797504",
+  "block_lines": 2,
+  "evidence": "write never completed",
+  "evidence_detail": [
+   "INFO dfs.DataNode$PacketResponder: PacketResponder <N> for block <BLK> terminating",
+   "INFO dfs.DataNode$PacketResponder: Received block <BLK> of size <N> from /<IP>",
+   "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: <IP> is added to <BLK> size <N>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec l'allocation de blocs dans le système de fichiers. Étape 3 : Cela peut être dû à une erreur de configuration ou à une erreur de système de fichiers",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS a tenté d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc a échoué, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-7057732666118938934",
+  "label": "Anomaly",
+  "log": "081109 204613 28 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000115_0/part-00115. blk_-7057732666118938934",
+  "block_lines": 29,
+  "evidence": "extra replication",
+  "evidence_detail": [
+   "INFO dfs.DataNode$DataTransfer: <IP>:Transmitted block <BLK> to /<IP>",
+   "INFO dfs.DataNode: <IP> Starting thread to transfer block <BLK> to <IP>",
+   "INFO dfs.FSNamesystem: BLOCK* ask <IP> to replicate <BLK> to datanode(s) <IP>",
+   "INFO dfs.DataNode$DataXceiver: Received block <BLK> src: /<IP> dest: /<IP> of size <N>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec l'allocation de blocs dans le système de fichiers. Étape 3 : La présence de l'étiquette Anomaly implique que cette erreur est anormale et nécessite une investigation plus approfondie.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-4304326910587241051",
+  "label": "Anomaly",
+  "log": "081109 204634 35 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000190_0/part-00190. blk_-4304326910587241051",
+  "block_lines": 33,
+  "evidence": "extra replication",
+  "evidence_detail": [
+   "INFO dfs.DataNode$DataTransfer: <IP>:Transmitted block <BLK> to /<IP>",
+   "INFO dfs.DataNode: <IP> Starting thread to transfer block <BLK> to <IP>, <IP>",
+   "INFO dfs.FSNamesystem: BLOCK* ask <IP> to replicate <BLK> to datanode(s) <IP> <IP>",
+   "INFO dfs.DataNode$DataXceiver: Received block <BLK> src: /<IP> dest: /<IP> of size <N>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec l'allocation de blocs dans le système de fichiers. Étape 3 : La présence de l'étiquette Anomaly indique que cette erreur est considérée comme anormale et nécessite une investigation plus approfondie.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8534237707549154279",
+  "label": "Anomaly",
+  "log": "081109 204009 29 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000243_0/part-00243. blk_8534237707549154279",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'opération d'allocation échoue, ce qui indique une anomalie dans le système. Étape 3 : Le message d'erreur est enregistré avec le label Anomaly, indiquant une déviation par rapport au comportement attendu.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8750997530106786888",
+  "label": "Anomaly",
+  "log": "081109 203719 211 INFO dfs.DataNode$DataXceiver: Receiving block blk_8750997530106786888 src: /10.251.35.1:37157 dest: /10.251.35.1:50010",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Connexion réseau anormale",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les anomalies. Étape 2 : Vérification des adresses IP source et de destination pour détecter les connexions inhabituelles. Étape 3 : Détection d'une connexion anormale entre les adresses IP source et de destination",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les connexions anormales. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les accès non autorisés. Étape 3 : Évaluation du protocole de communication utilisé pour déterminer si la connexion est sécurisée ou non.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-911884192120662511",
+  "label": "Anomaly",
+  "log": "081109 204219 27 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000242_0/part-00242. blk_-911884192120662511",
+  "block_lines": 4,
+  "evidence": "write never completed",
+  "evidence_detail": [
+   "INFO dfs.DataNode$PacketResponder: PacketResponder <N> for block <BLK> terminating",
+   "INFO dfs.DataNode$PacketResponder: Received block <BLK> of size <N> from /<IP>",
+   "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: <IP> is added to <BLK> size <N>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec l'allocation de blocs dans le système de fichiers. Étape 3 : La présence de l'étiquette Anomaly implique que cette erreur est anormale et nécessite une investigation plus approfondie.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS a tenté d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc a échoué, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_7819129300327159896",
+  "label": "Anomaly",
+  "log": "081109 204155 32 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000295_0/part-00295. blk_7819129300327159896",
+  "block_lines": 4,
+  "evidence": "write never completed",
+  "evidence_detail": [
+   "INFO dfs.DataNode$PacketResponder: PacketResponder <N> for block <BLK> terminating",
+   "INFO dfs.DataNode$PacketResponder: Received block <BLK> of size <N> from /<IP>",
+   "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: <IP> is added to <BLK> size <N>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème lors de l'allocation d'un bloc pour un fichier temporaire. Étape 3 : Cela peut être dû à une erreur de configuration ou à un problème de disponibilité de l'espace disque dans le système HDFS.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8359282243099177241",
+  "label": "Anomaly",
+  "log": "081109 204243 31 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000262_0/part-00262. blk_8359282243099177241",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec l'allocation de blocs dans le système de fichiers. Étape 3 : Cela peut être dû à une erreur de configuration ou à une erreur de système de fichiers.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8509328013649051336",
+  "label": "Anomaly",
+  "log": "081109 204439 32 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000400_0/part-00400. blk_8509328013649051336",
+  "block_lines": 27,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc pour le fichier /user/root/rand/_temporary/_task_200811092030_0001_m_000400_0/part-00400. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère que le système de noms HDFS a rencontré un problème lors de l'allocation d'un bloc pour le fichier. Étape 3 : Cela peut être dû à une erreur de configuration, une erreur de disque ou une erreur de réseau, ce qui justifie le label Anomaly.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_5972760974375530027",
+  "label": "Anomaly",
+  "log": "081109 204134 32 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000069_0/part-00069. blk_5972760974375530027",
+  "block_lines": 2,
+  "evidence": "write never completed",
+  "evidence_detail": [
+   "INFO dfs.DataNode$PacketResponder: PacketResponder <N> for block <BLK> terminating",
+   "INFO dfs.DataNode$PacketResponder: Received block <BLK> of size <N> from /<IP>",
+   "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: blockMap updated: <IP> is added to <BLK> size <N>",
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log indique une erreur d'allocation de bloc pour un fichier temporaire. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec le système de noms de HDFS. Étape 3 : L'erreur peut être due à une saturation de l'espace disque ou à une configuration incorrecte de HDFS.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8522440494057928612",
+  "label": "Anomaly",
+  "log": "081109 204346 29 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000240_0/part-00240. blk_8522440494057928612",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log indique une erreur d'allocation de bloc pour le fichier /user/root/rand/_temporary/_task_200811092030_0001_m_000240_0/part-00240. Étape 2 : Le code d'erreur BLOCK* NameSystem.allocateBlock suggère une erreur lors de l'allocation d'un bloc dans le système de fichiers HDFS. Étape 3 : Cela peut être dû à une erreur de configuration, un problème de connectivité ou une erreur de gestion des ressources dans le cluster HDFS.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_9097589278338830437",
+  "label": "Anomaly",
+  "log": "081109 204148 35 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000290_0/part-00290. blk_9097589278338830437",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'opération d'allocation échoue, ce qui indique une anomalie. Étape 3 : Le système enregistre l'événement comme une erreur avec le label Anomaly.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_8391490706717686739",
+  "label": "Anomaly",
+  "log": "081109 204613 29 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000240_0/part-00240. blk_8391490706717686739",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème avec l'allocation de blocs dans le système de fichiers. Étape 3 : Cela peut être dû à une erreur de configuration ou à une erreur de système de fichiers",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_7621437832633701631",
+  "label": "Anomaly",
+  "log": "081109 204551 29 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000293_0/part-00293. blk_7621437832633701631",
+  "block_lines": 26,
+  "evidence": "empty packet",
+  "evidence_detail": [
+   "INFO dfs.DataNode$BlockReceiver: Receiving empty packet for block <BLK>"
+  ],
+  "teacher": {
+   "cause": "Erreur d'allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le log HDFS indique une erreur d'allocation de bloc. Étape 2 : Le message d'erreur BLOCK* NameSystem.allocateBlock suggère un problème lors de l'allocation d'un bloc pour un fichier temporaire. Étape 3 : Cela peut être dû à une erreur de configuration ou à une erreur de système de fichiers",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Erreur d'allocation de bloc",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS tente d'allouer un bloc pour un fichier temporaire. Étape 2 : L'allocation du bloc échoue, ce qui indique une erreur dans le processus d'écriture de données. Étape 3 : Cette erreur peut être due à une panne de disque, une erreur de configuration ou une saturation du système de fichiers.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_7523193419675083274",
+  "label": "Anomaly",
+  "log": "081109 203627 183 INFO dfs.DataNode$DataXceiver: Receiving block blk_7523193419675083274 src: /10.251.214.175:59812 dest: /10.251.214.175:50010",
+  "block_lines": 26,
+  "evidence": "failed delete (BlockInfo not found)",
+  "evidence_detail": [
+   "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap."
+  ],
+  "teacher": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les anomalies. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les accès non autorisés. Étape 3 : Détection d'une connexion anormale à partir de l'adresse IP /10.251.214.175",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les connexions anormales. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les accès non autorisés. Étape 3 : Évaluation du protocole de communication utilisé pour déterminer si la connexion est sécurisée ou non.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-6689614308409336057",
+  "label": "Anomaly",
+  "log": "081109 203627 190 INFO dfs.DataNode$DataXceiver: Receiving block blk_-6689614308409336057 src: /10.251.106.10:34426 dest: /10.251.106.10:50010",
+  "block_lines": 27,
+  "evidence": "addStoredBlock for a block of no file",
+  "evidence_detail": [
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: addStoredBlock request received for <BLK> on <IP> size <N> But it does not belong to any file."
+  ],
+  "teacher": {
+   "cause": "Connexion réseau anormale",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les anomalies. Étape 2 : Vérification de la source et de la destination des données pour détecter les accès non autorisés. Étape 3 : Évaluation de la cohérence des informations de connexion pour déterminer si l'anomalie est due à une erreur de configuration ou à une activité malveillante.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier l'anomalie. Étape 2 : Vérification de l'adresse source et de destination pour détecter des accès non autorisés. Étape 3 : Détection d'une connexion inhabituelle vers le DataNode",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-2033526004731990730",
+  "label": "Anomaly",
+  "log": "081109 203730 233 INFO dfs.DataNode$DataXceiver: Receiving block blk_-2033526004731990730 src: /10.251.215.16:42635 dest: /10.251.215.16:50010",
+  "block_lines": 27,
+  "evidence": "addStoredBlock for a block of no file",
+  "evidence_detail": [
+   "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: addStoredBlock request received for <BLK> on <IP> size <N> But it does not belong to any file."
+  ],
+  "teacher": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier l'anomalie. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter une connexion non autorisée. Étape 3 : Détection d'une connexion inattendue vers le port 50010, qui est généralement utilisé pour les communications HDFS.",
+   "mentions_evidence": false
+  },
+  "finetuned": {
+   "cause": "Connexion non autorisée",
+   "raisonnement": "Étape 1 : Analyse du log HDFS pour identifier les connexions anormales. Étape 2 : Vérification de l'adresse IP source et de destination pour détecter les accès non autorisés. Étape 3 : Évaluation du protocole de communication utilisé pour déterminer si la connexion est sécurisée ou non.",
+   "mentions_evidence": false
+  }
+ },
+ {
+  "block_id": "blk_-6714222090039882252",
+  "label": "Normal",
+  "log": "081109 203536 152 INFO dfs.DataNode$DataXceiver: Receiving block blk_-6714222090039882252 src: /10.251.38.214:47135 dest: /10.251.38.214:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est reçu à partir de l'adresse source /10.251.38.214:47135. Étape 3 : Le bloc est ensuite transmis à la destination /10.251.38.214:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_6288745377407023095",
+  "label": "Normal",
+  "log": "081109 203533 145 INFO dfs.DataNode$DataXceiver: Receiving block blk_6288745377407023095 src: /10.251.42.191:50123 dest: /10.251.42.191:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS reçoit une demande de transfert de données. Étape 2 : Le nœud de données identifie la source et la destination du bloc de données. Étape 3 : Le transfert de données est effectué de la source à la destination"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-8694359045337946818",
+  "label": "Normal",
+  "log": "081109 203537 152 INFO dfs.DataNode$DataXceiver: Receiving block blk_-8694359045337946818 src: /10.251.67.4:35493 dest: /10.251.67.4:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est reçu à partir de l'adresse source /10.251.67.4:35493. Étape 3 : Le bloc est ensuite transmis à la destination /10.251.67.4:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_8665604379324651807",
+  "label": "Normal",
+  "log": "081109 203533 148 INFO dfs.DataNode$DataXceiver: Receiving block blk_8665604379324651807 src: /10.251.125.174:52552 dest: /10.251.125.174:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Transfert de bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est transféré depuis l'adresse source. Étape 3 : Le bloc est stocké à l'adresse de destination"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-2947515393396507971",
+  "label": "Normal",
+  "log": "081109 203534 151 INFO dfs.DataNode$DataXceiver: Receiving block blk_-2947515393396507971 src: /10.251.193.224:48908 dest: /10.251.193.224:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le DataNode reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées depuis le client vers le DataNode"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-8162512552777886199",
+  "label": "Normal",
+  "log": "081109 203536 32 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000331_0/part-00331. blk_-8162512552777886199",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS reçoit une demande d'écriture de données. Étape 2 : Le NameSystem de HDFS est sollicité pour allouer un bloc pour stocker ces données. Étape 3 : Le bloc est alloué avec un identifiant unique, comme indiqué dans le log."
+  },
+  "finetuned": {
+   "cause": "Allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS reçoit une demande d'écriture de données. Étape 2 : Le NameSystem est sollicité pour allouer un bloc pour stocker les données. Étape 3 : Le bloc est alloué avec succès et son identifiant est généré."
+  }
+ },
+ {
+  "block_id": "blk_4521164666406024155",
+  "label": "Normal",
+  "log": "081109 203533 146 INFO dfs.DataNode$DataXceiver: Receiving block blk_4521164666406024155 src: /10.251.43.147:42628 dest: /10.251.43.147:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-2398209593415798905",
+  "label": "Normal",
+  "log": "081109 203532 146 INFO dfs.DataNode$DataXceiver: Receiving block blk_-2398209593415798905 src: /10.251.67.225:38540 dest: /10.251.67.225:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées depuis le client vers le nœud de données HDFS."
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-4710160024743429585",
+  "label": "Normal",
+  "log": "081109 203533 150 INFO dfs.DataNode$DataXceiver: Receiving block blk_-4710160024743429585 src: /10.251.125.174:49397 dest: /10.251.125.174:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le DataNode reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées depuis le client vers le DataNode"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-3076705858972714475",
+  "label": "Normal",
+  "log": "081109 203533 146 INFO dfs.DataNode$DataXceiver: Receiving block blk_-3076705858972714475 src: /10.251.43.21:42312 dest: /10.251.43.21:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Le nœud de données HDFS reçoit un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS est configuré pour recevoir des blocs de données. Étape 2 : Un client HDFS envoie un bloc de données au nœud de données. Étape 3 : Le nœud de données enregistre l'événement de réception du bloc dans les logs HDFS"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est reçu à partir du port 42312. Étape 3 : Le bloc est ensuite transmis au nœud de données à l'adresse IP 10.251.43.21 sur le port 50010."
+  }
+ },
+ {
+  "block_id": "blk_5703440264997337028",
+  "label": "Normal",
+  "log": "081109 203531 146 INFO dfs.DataNode$DataXceiver: Receiving block blk_5703440264997337028 src: /10.251.66.63:36747 dest: /10.251.66.63:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS reçoit une demande de transfert de données. Étape 2 : Le nœud de données identifie la source et la destination du bloc de données. Étape 3 : Le transfert de données est effectué de la source à la destination"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_7854771516489510256",
+  "label": "Normal",
+  "log": "081109 203529 148 INFO dfs.DataNode$DataXceiver: Receiving block blk_7854771516489510256 src: /10.251.215.16:53860 dest: /10.251.215.16:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le transfert est effectué depuis l'adresse source /10.251.215.16:53860. Étape 3 : Les données sont reçues et stockées sur le nœud de données à l'adresse de destination /10.251.215.16:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-7559008592818043090",
+  "label": "Normal",
+  "log": "081109 203535 150 INFO dfs.DataNode$DataXceiver: Receiving block blk_-7559008592818043090 src: /10.251.111.228:37302 dest: /10.251.111.228:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est reçu depuis l'adresse source /10.251.111.228:37302. Étape 3 : Le bloc est destiné à l'adresse de destination /10.251.111.228:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_1937926427363440853",
+  "label": "Normal",
+  "log": "081109 203532 149 INFO dfs.DataNode$DataXceiver: Receiving block blk_1937926427363440853 src: /10.251.67.113:49585 dest: /10.251.67.113:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le DataNode reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées depuis le client vers le DataNode"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-8054782785917830420",
+  "label": "Normal",
+  "log": "081109 203534 146 INFO dfs.DataNode$DataXceiver: Receiving block blk_-8054782785917830420 src: /10.251.42.246:51225 dest: /10.251.42.246:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS reçoit un bloc de données. Étape 2 : Le bloc est reçu à partir de l'adresse source /10.251.42.246:51225. Étape 3 : Le bloc est ensuite transmis à la destination /10.251.42.246:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-8515113585876695879",
+  "label": "Normal",
+  "log": "081109 203533 148 INFO dfs.DataNode$DataXceiver: Receiving block blk_-8515113585876695879 src: /10.251.214.18:55717 dest: /10.251.214.18:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le DataNode reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées de la source à la destination spécifiée."
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_3974948352784823938",
+  "label": "Normal",
+  "log": "081109 203531 144 INFO dfs.DataNode$DataXceiver: Receiving block blk_3974948352784823938 src: /10.251.125.193:54957 dest: /10.251.125.193:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées du client vers le nœud de données."
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-4856764023353422443",
+  "label": "Normal",
+  "log": "081109 203930 27 INFO dfs.FSNamesystem: BLOCK* NameSystem.allocateBlock: /user/root/rand/_temporary/_task_200811092030_0001_m_000369_0/part-00369. blk_-4856764023353422443",
+  "block_lines": 25,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS reçoit une demande d'allocation de bloc. Étape 2 : Le NameSystem vérifie la disponibilité de l'espace sur les DataNodes. Étape 3 : Un bloc est alloué avec un identifiant unique"
+  },
+  "finetuned": {
+   "cause": "Allocation de bloc dans HDFS",
+   "raisonnement": "Étape 1 : Le système de fichiers HDFS reçoit une demande d'écriture de données. Étape 2 : Le NameSystem est sollicité pour allouer un bloc pour stocker les données. Étape 3 : Le bloc est alloué avec succès et son identifiant est généré."
+  }
+ },
+ {
+  "block_id": "blk_-202775138379690649",
+  "label": "Normal",
+  "log": "081109 203531 145 INFO dfs.DataNode$DataXceiver: Receiving block blk_-202775138379690649 src: /10.251.42.9:36585 dest: /10.251.42.9:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est reçu à partir de l'adresse source /10.251.42.9:36585. Étape 3 : Le bloc est ensuite transmis à l'adresse de destination /10.251.42.9:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-1942808544656255720",
+  "label": "Normal",
+  "log": "081109 203531 146 INFO dfs.DataNode$DataXceiver: Receiving block blk_-1942808544656255720 src: /10.251.30.85:54075 dest: /10.251.30.85:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le DataNode reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées de la source à la destination spécifiée."
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-5621370428482753569",
+  "label": "Normal",
+  "log": "081109 203840 270 INFO dfs.DataNode$DataXceiver: Receiving block blk_-5621370428482753569 src: /10.250.11.100:55042 dest: /10.250.11.100:50010",
+  "block_lines": 25,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est reçu à partir de l'adresse source /10.250.11.100:55042. Étape 3 : Le bloc est ensuite transmis à la destination /10.250.11.100:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-5702477348781461354",
+  "label": "Normal",
+  "log": "081109 203533 149 INFO dfs.DataNode$DataXceiver: Receiving block blk_-5702477348781461354 src: /10.251.195.70:34283 dest: /10.251.195.70:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le DataNode reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique. Étape 3 : Les données sont transférées depuis le client vers le DataNode"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_-2519617320378473615",
+  "label": "Normal",
+  "log": "081109 203530 145 INFO dfs.DataNode$DataXceiver: Receiving block blk_-2519617320378473615 src: /10.251.126.5:60763 dest: /10.251.126.5:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS reçoit une demande de transfert de données. Étape 2 : Le bloc de données est identifié par son ID unique blk_-2519617320378473615. Étape 3 : Les données sont transférées depuis l'adresse source /10.251.126.5:60763 vers l'adresse de destination /10.251.126.5:50010."
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_5488900529276086615",
+  "label": "Normal",
+  "log": "081109 203534 149 INFO dfs.DataNode$DataXceiver: Receiving block blk_5488900529276086615 src: /10.251.126.255:57365 dest: /10.251.126.255:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit un bloc de données. Étape 2 : Le bloc est identifié par son ID unique blk_5488900529276086615. Étape 3 : Les données sont transférées de la source /10.251.126.255:57365 vers la destination /10.251.126.255:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ },
+ {
+  "block_id": "blk_1613550655988246573",
+  "label": "Normal",
+  "log": "081109 203533 148 INFO dfs.DataNode$DataXceiver: Receiving block blk_1613550655988246573 src: /10.251.42.16:50651 dest: /10.251.42.16:50010",
+  "block_lines": 38,
+  "evidence": "other",
+  "evidence_detail": [],
+  "teacher": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données HDFS reçoit une demande de transfert de données. Étape 2 : Le transfert est effectué depuis l'adresse source /10.251.42.16:50651. Étape 3 : Les données sont reçues et stockées sur le nœud de données à l'adresse de destination /10.251.42.16:50010"
+  },
+  "finetuned": {
+   "cause": "Réception d'un bloc de données",
+   "raisonnement": "Étape 1 : Le nœud de données reçoit une demande de transfert de données. Étape 2 : Le nœud de données vérifie la source et la destination du transfert. Étape 3 : Le transfert de données est effectué avec succès."
+  }
+ }
+]

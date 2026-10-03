@@ -5,7 +5,10 @@ Full pipeline on a raw HDFS log file: detect anomalous blocks, then explain them
    trained by src/detect.py
 2. for every flagged block, pick the line that best explains the decision: a template
    never seen in training first, otherwise the template with the largest weight
-3. send that line to the fine-tuned Qwen2.5-1.5B with the label "Anomaly"
+3. list the events that almost every normal block has (90% or more of the normal
+   training blocks) but this block does not. Many HDFS anomalies are writes that never
+   finish, so what is missing says more than any single line
+4. send the chosen line to the fine-tuned Qwen2.5-1.5B with the label "Anomaly"
 
 The model still explains one line, not the whole block (that is how it was trained),
 but the label now comes from a detector instead of the ground truth.
@@ -32,10 +35,16 @@ OUT_PATH = os.path.join(ROOT, "results", "pipeline", "report.jsonl")
 
 
 def load_detector(path=MODEL_PATH):
+    """Returns the vocabulary, the weights (one per template + <UNK>) and the intercept."""
     with open(path, "rb") as f:
         d = pickle.load(f)
     vec = CountVectorizer().fit([d["templates"]])  # rebuild the same vocabulary
-    return vec, d["clf"]
+    return vec, np.array(d["coef"]), d["intercept"], d.get("normal_freq", {})
+
+
+def predict_proba(X, coefs, intercept):
+    """Same as LogisticRegression.predict_proba(np.log1p(X))[:, 1]."""
+    return 1.0 / (1.0 + np.exp(-(np.log1p(X) @ coefs + intercept)))
 
 
 def read_blocks(log_path):
@@ -47,6 +56,13 @@ def read_blocks(log_path):
             for b in set(BLK_RE.findall(line)):
                 blocks[b].append((template(line), line))
     return blocks
+
+
+def missing_events(lines, normal_freq, min_freq=0.9):
+    """Templates found in at least min_freq of the normal blocks but absent from this one."""
+    present = {t for t, _ in lines}
+    return [t for t, f in sorted(normal_freq.items(), key=lambda kv: -kv[1])
+            if f >= min_freq and t not in present]
 
 
 def pick_line(lines, vec, coefs):
@@ -66,14 +82,13 @@ def main():
     ap.add_argument("--out", default=OUT_PATH)
     args = ap.parse_args()
 
-    vec, clf = load_detector()
-    coefs = clf.coef_[0]
+    vec, coefs, intercept, normal_freq = load_detector()
 
     t0 = time.perf_counter()
     blocks = read_blocks(args.log)
     ids = list(blocks)
     X = vec.transform([[t for t, _ in blocks[b]] for b in ids])
-    scores = clf.predict_proba(np.log1p(X))[:, 1]
+    scores = predict_proba(X, coefs, intercept)
     print(f"{len(ids):,} blocks scored in {time.perf_counter() - t0:.1f}s")
 
     flagged = sorted([(s, b) for s, b in zip(scores, ids) if s > args.threshold], reverse=True)
@@ -89,7 +104,8 @@ def main():
         for rank, (score, b) in enumerate(flagged):
             line = pick_line(blocks[b], vec, coefs)
             row = {"block_id": b, "score": round(float(score), 4),
-                   "n_lines": len(blocks[b]), "line": line}
+                   "n_lines": len(blocks[b]), "line": line,
+                   "missing": missing_events(blocks[b], normal_freq)}
             if model is not None and rank < args.top:
                 t1 = time.perf_counter()
                 r = explain(line, "Anomaly", model, tokenizer)
@@ -100,6 +116,8 @@ def main():
             if rank < args.top:
                 print(f"\n[{score:.2f}] {b} ({len(blocks[b])} lines)")
                 print(f"  line:  {line[:140]}")
+                for t in row["missing"]:
+                    print(f"  missing: {t}")
                 if "cause" in row:
                     print(f"  cause: {row['cause']}")
                     print(f"  reasoning: {row['raisonnement']}")

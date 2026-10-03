@@ -15,7 +15,22 @@ the 70B model writes the explanations once, the 1.5B model learns to reproduce t
 
 The first version of this project only had the explanation part, with the label given as
 input. That was the main weakness (the label has to come from somewhere), so I added the
-detection step, a script that chains both, and a benchmark of speed and cost.
+detection step, a script that chains both, a benchmark of speed and cost, and an audit that
+checks the explanations against the raw logs instead of against the teacher.
+
+Main results:
+
+- Detection on the full HDFS_v1 log (11M lines, chronological split): logistic regression
+  reaches F1 0.973 (precision 0.955, recall 0.992). The log level alone finds a quarter of
+  the anomalies.
+- The fine-tuned 1.5B model reproduces the teacher better than every baseline (ROUGE-L
+  0.506 on the reasoning against 0.456 for template retrieval), and with batching it is
+  about 7 times cheaper than calling the 70B teacher.
+- But neither the teacher nor the student finds the real cause: on 250 anomalous test
+  lines, 0 explanations from the student and 1 from the teacher mention what is actually
+  wrong with the block. What is wrong is almost always somewhere else in the block (a
+  write that never finished, a failed delete), not in the line the model sees. A simple
+  "which usual events are missing" check in the pipeline is more useful than the LLM here.
 
 ## Data
 
@@ -69,24 +84,34 @@ Three detectors:
 - **Logistic regression** on log(1 + counts), `class_weight="balanced"` because anomalies
   are about 3% of the blocks.
 
-Results on the first 100k lines of HDFS_v1 (7,940 blocks, test = last 1,588 blocks, 5.7%
-anomalies):
+Results on the full HDFS_v1 log (11,175,629 lines, 575,061 blocks, 54 templates; test =
+last 115,013 blocks, 1.5% anomalies):
 
-| Detector | Precision | Recall | F1 |
-|---|---:|---:|---:|
-| WARN/ERROR rule | 1.000 | 0.011 | 0.022 |
-| PCA (unsupervised) | 0.980 | 0.549 | 0.704 |
-| Logistic regression | 0.982 | 0.593 | 0.740 |
+| Detector | Precision | Recall | F1 | Flagged |
+|---|---:|---:|---:|---:|
+| WARN/ERROR rule | 1.000 | 0.248 | 0.398 | 417 |
+| PCA (unsupervised) | 0.379 | 0.051 | 0.090 | 227 |
+| Logistic regression | 0.955 | 0.992 | 0.973 | 1,744 |
 
-The rule is almost useless: nearly every line of an anomalous block is an INFO line, so the
-log level says nothing. Both models are very precise but miss about 40% of the anomalies here.
-I looked at the missed blocks and they contain exactly the same events as normal blocks. My
-explanation is that on a 100k-line extract many blocks are cut before the lines that make them
-anomalous are written. If that is right, the detector needs complete sessions, which is a real
-constraint for a streaming setup.
+- **The rule** never raises a false alarm, but three quarters of the anomalous blocks only
+  contain INFO lines.
+- **PCA** ranks the blocks well (ROC AUC 0.98 on the test set) but its threshold does not
+  transfer: it is fixed on the training period, where anomalies are 3.3% of the blocks,
+  against 1.5% in the test period, and the scores shift between the two. Setting the
+  threshold well needs either labels or a known anomaly rate.
+- **Logistic regression** finds almost every anomaly. The templates with the largest weights
+  are the ones you would expect: a redundant `addStoredBlock`, a block that belongs to no
+  file, a failed delete, a replication timeout.
 
-Detection runs at about 100k lines/s on a laptop CPU, parsing included. The detector is
-saved in `modele_detection/detector.pkl` and the full numbers are in
+The detector needs complete sessions. On an extract of the first 105k lines, the same model
+only gets F1 0.27: the most recent test blocks are cut at the end of the extract, look like
+writes that never finished, and get flagged. On a live stream you would have to wait for a
+block to be closed before scoring it.
+
+Detection runs at about 115k lines/s on one CPU core, parsing included (about 2 minutes
+for the full log). The detector is saved in `modele_detection/detector.pkl` as plain lists
+(templates, weights, and how often each template appears in normal blocks), so it loads
+with any scikit-learn version. The full numbers are in
 [`results/detection/`](results/detection/).
 
 ## Step 2: explanation
@@ -143,18 +168,60 @@ Note: the first version of this README reported numbers from a 20-example check 
 lines). A resume bug in the old evaluation script made the full run reuse those results.
 The table above replaces them.
 
+### Audit: do the explanations find the real cause?
+
+The scores above only say how close each system gets to the teacher. To check the
+explanations against the logs themselves, `src/audit_explanations.py` rebuilds the whole
+block of each anomalous test line from `HDFS.log` and looks for the block-level evidence:
+the events that 90% of normal blocks have and this one does not, or rare events it contains.
+Then it checks whether the cause and reasoning mention that evidence. I also read 50 of them
+by hand (25 anomalies, 25 normal lines) to make sure the keyword check misses nothing.
+
+| What is wrong with the block | Blocks |
+|---|---:|
+| the write never completed (no `addStoredBlock`, no `PacketResponder terminating`) | 101 (40%) |
+| a failed delete (`BlockInfo not found in volumeMap`) | 82 (33%) |
+| `addStoredBlock` for a block that belongs to no file | 47 (19%) |
+| extra replication | 16 (6%) |
+| empty packet | 4 (2%) |
+
+| System | Mentions this evidence |
+|---|---:|
+| Llama 3.3-70B (teacher) | 1 / 250 |
+| Qwen2.5-1.5B + LoRA | 0 / 250 |
+
+Both models tell one of two stories depending on the line they get: an `allocateBlock` line
+becomes "Erreur d'allocation de bloc", a `Receiving block` line becomes "Connexion non
+autorisée". Neither is supported by the logs: the allocation itself succeeded, and nothing
+in the block points to an unauthorized connection. On normal lines the explanations are
+fine, because they only describe the event. So the fine-tuning worked (the student copies
+the teacher well), but what it copies is a guess, because the cause is not in the input.
+Details and the hand-checked sample are in [`results/audit/`](results/audit/).
+
 ## Putting both together
 
 `src/pipeline.py` takes a raw log file, scores every block with the logistic regression, and
-for each flagged block picks the line that weighs the most in the decision: a template never
-seen in training if there is one, otherwise the template with the largest coefficient. That
-line goes to the fine-tuned model with the label "Anomaly". The output is a JSONL report with
-the block, its score, the chosen line and the explanation.
+for each flagged block:
 
-The explanation is still about one line and not the whole block, because that is how the model
-was trained. When I tested the pipeline on the last 20k lines of the extract, it flagged 1,105
-blocks out of 2,624, almost all of them blocks with only one or two lines whose beginning was
-cut off. On a live stream you would have to wait for a block to be closed before scoring it.
+- lists the **missing events**: templates that at least 90% of normal training blocks
+  contain but this block does not
+- picks the line that weighs the most in the decision (a template never seen in training if
+  there is one, otherwise the one with the largest weight) and sends it to the fine-tuned
+  model with the label "Anomaly"
+
+The output is a JSONL report with the block, its score, the missing events, the chosen line
+and the explanation.
+
+I tested it on 3,000 consecutive blocks from the test period, with all their lines (38,957
+lines, 15 anomalous blocks). It flagged exactly the 15 anomalies, with no false alarm, in
+0.4 s. For 12 of them the missing events say what happened: the block was allocated and
+the transfer started, but it was never stored (`addStoredBlock` and `PacketResponder
+terminating` never appear). For those 12, the line sent to the language model is the
+`allocateBlock` line, and from that line alone it can only guess. For the other 3, the chosen
+line is the anomalous event itself (a redundant `addStoredBlock`, an empty packet), so the
+line selection does its job when the anomaly is something that happened rather than
+something that did not. The missing-events list is the better explanation for the first
+kind, and it costs nothing.
 
 ## Speed and cost
 
@@ -185,20 +252,23 @@ the whole VM, so the real gap is a bit smaller. Full numbers in
 - **The explanation model justifies a label, it does not find a cause.** Labels are per block
   and the model sees one line. All 250 test anomalies are INFO lines whose templates also
   appear with the Normal label, so there is nothing in the line itself that explains the
-  anomaly. The teacher often makes up a cause, and about a quarter of its explanations use the
-  label itself as the evidence.
+  anomaly. The audit confirms it: 0 of 250 student explanations mention the real evidence.
 - **Small and repetitive training data.** 69 training anomalies over 29 different causes, and
   only 15 message templates overall. The validation perplexity is already 1.19 after one epoch,
   and on the test set the model only uses 8 distinct causes (the references have 19).
 - **The metrics compare to the teacher, not to the truth.** There are no human-validated root
-  causes for this dataset.
+  causes for this dataset. The audit checks against the logs, but with keywords and a
+  50-example manual check, not with expert labels.
 - **The detector needs complete sessions and labels.** The logistic regression is supervised,
-  and both models fail on blocks that are cut. PCA works without labels but is a bit weaker.
-- **Only HDFS.** I did not test on another system (BGL or Thunderbird from Loghub), where
-  templates are much more varied.
+  and it fails on blocks that are cut. PCA works without labels but its threshold does not
+  transfer from one period to the next.
+- **HDFS is easy.** 54 templates and very regular sessions. `src/detect_bgl.py` runs the same
+  detectors on BGL (Blue Gene/L, Loghub), where there is no session id and templates are much
+  more varied.
 
-What I would do next: give the model the whole flagged block instead of one line, and
-re-annotate at the block level so that the cause can actually be read from the input.
+What I would do next: give the model the whole flagged block (or the list of missing and
+rare events) instead of one line, and re-annotate at the block level so that the cause can
+actually be read from the input.
 
 ## Repo structure
 
@@ -206,10 +276,13 @@ re-annotate at the block level so that the cause can actually be read from the i
 data/                  train and test sets for the explanation model (JSON and CSV)
 modele_hdfs/           LoRA adapter, tokenizer, training history
 modele_detection/      trained detector (template list + logistic regression)
-results/detection/     detection metrics
+results/detection/     detection metrics (full HDFS_v1 log)
+results/audit/         explanations checked against the raw blocks
 results/eval_n527/     explanation metrics, predictions and examples on the full test set
 results/benchmark/     speed and cost of the fine-tuned model
 src/detect.py          block-level detection (rule, PCA, logistic regression)
+src/detect_bgl.py      the same detectors on BGL, with time windows as sessions
+src/audit_explanations.py  checks the explanations against the whole block
 src/dataset.py         Dataset and collator (ChatML, loss masking, dynamic padding)
 src/train.py           LoRA training with the weighted sampler
 src/evaluate.py        baselines, zero-shot, few-shot and fine-tuned evaluation
@@ -217,6 +290,7 @@ src/inference.py       explain one log line with the fine-tuned model
 src/pipeline.py        detect anomalous blocks in a log file, then explain them
 src/benchmark.py       latency, throughput and cost
 evaluation_colab.ipynb runs the evaluation on a Colab T4
+pipeline_benchmark_colab.ipynb  runs the pipeline and the benchmark on a Colab T4
 ```
 
 ## Usage
@@ -226,6 +300,8 @@ pip install -r requirements.txt
 
 # detection (CPU), needs HDFS.log and anomaly_label.csv from Loghub HDFS_v1
 python src/detect.py --log path/to/HDFS.log --labels path/to/anomaly_label.csv
+python src/detect_bgl.py --log path/to/BGL.log
+python src/audit_explanations.py --log path/to/HDFS.log
 
 # explanation model
 python src/train.py                      # training (GPU)

@@ -1,69 +1,69 @@
 {
-  "lines": 100000,
-  "blocks": 7940,
-  "train_blocks": 6352,
-  "test_blocks": 1588,
-  "test_anomaly_rate": 0.0573,
-  "templates": 20,
+  "lines": 11175629,
+  "blocks": 575061,
+  "train_blocks": 460048,
+  "test_blocks": 115013,
+  "test_anomaly_rate": 0.0146,
+  "templates": 54,
   "test_blocks_with_unseen_template": 0,
-  "lines_per_second_cpu": 36102,
+  "lines_per_second_cpu": 117021,
   "top_anomaly_templates": [
     [
-      "INFO dfs.DataNode$BlockReceiver: Receiving empty packet for block <BLK>",
-      2.59
+      "WARN dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: Redundant addStoredBlock request received for <BLK> on <IP> size <N>",
+      22.87
     ],
     [
-      "INFO dfs.FSDataset: Deleting block <BLK> file <PATH><BLK>",
-      1.78
+      "INFO dfs.FSNamesystem: BLOCK* NameSystem.addStoredBlock: addStoredBlock request received for <BLK> on <IP> size <N> But it does not belong to any file.",
+      21.84
+    ],
+    [
+      "WARN dfs.FSDataset: Unexpected error trying to delete block <BLK>. BlockInfo not found in volumeMap.",
+      19.15
+    ],
+    [
+      "INFO dfs.FSNamesystem: BLOCK* NameSystem.delete: <BLK> is added to invalidSet of <IP>",
+      14.17
+    ],
+    [
+      "INFO dfs.DataNode$BlockReceiver: Receiving empty packet for block <BLK>",
+      9.77
+    ],
+    [
+      "WARN dfs.PendingReplicationBlocks$PendingReplicationMonitor: PendingReplicationMonitor timed out block <BLK>",
+      8.19
     ],
     [
       "INFO dfs.DataNode: <IP> Starting thread to transfer block <BLK> to <IP>",
-      1.41
+      7.68
     ],
     [
       "INFO dfs.FSNamesystem: BLOCK* ask <IP> to replicate <BLK> to datanode(s) <IP>",
-      1.41
-    ],
-    [
-      "INFO dfs.DataNode$DataTransfer: <IP>:Transmitted block <BLK> to /<IP>",
-      0.92
-    ],
-    [
-      "INFO dfs.DataNode$DataXceiver: Received block <BLK> src: /<IP> dest: /<IP> of size <N>",
-      0.67
-    ],
-    [
-      "INFO dfs.DataNode$DataXceiver: <IP> Served block <BLK> to /<IP>",
-      0.66
-    ],
-    [
-      "INFO dfs.DataNode$DataXceiver: writeBlock <BLK> received exception java.io.IOException: Could not read from stream",
-      0.43
+      7.68
     ]
   ],
   "detectors": {
     "WARN/ERROR rule": {
-      "precision": 0.0,
-      "recall": 0.0,
-      "f1": 0.0,
-      "flagged": 0,
-      "true_anomalies": 91
+      "precision": 1.0,
+      "recall": 0.2484,
+      "f1": 0.3979,
+      "flagged": 417,
+      "true_anomalies": 1679
     },
     "PCA (unsupervised)": {
-      "precision": 0.1441,
-      "recall": 0.7253,
-      "f1": 0.2404,
-      "flagged": 458,
-      "true_anomalies": 91,
-      "fit_s": 0.07
+      "precision": 0.3789,
+      "recall": 0.0512,
+      "f1": 0.0902,
+      "flagged": 227,
+      "true_anomalies": 1679,
+      "fit_s": 1.75
     },
     "Logistic regression": {
-      "precision": 0.1537,
-      "recall": 0.7802,
-      "f1": 0.2568,
-      "flagged": 462,
-      "true_anomalies": 91,
-      "fit_s": 0.16
+      "precision": 0.9547,
+      "recall": 0.9917,
+      "f1": 0.9728,
+      "flagged": 1744,
+      "true_anomalies": 1679,
+      "fit_s": 1.98
     }
   }
 }

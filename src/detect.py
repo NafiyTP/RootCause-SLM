@@ -209,9 +209,17 @@ def main():
 
     os.makedirs(OUT_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
-    # only plain objects (template list + sklearn model), so another script can load them
+    # only plain Python lists (templates, weights), so the file loads with any
+    # scikit-learn version, or without scikit-learn at all
+    # share of normal training blocks that contain each template, so the pipeline can
+    # say which usual events are missing from a flagged block
+    normal = X_tr[y_tr == 0] > 0
+    normal_freq = dict(zip(vec.names[:-1], normal[:, :-1].mean(axis=0).round(4).tolist()))
     with open(MODEL_PATH, "wb") as f:
-        pickle.dump({"templates": vec.names[:-1], "clf": lr.clf}, f)
+        pickle.dump({"templates": vec.names[:-1],
+                     "coef": lr.clf.coef_[0].tolist(),
+                     "intercept": float(lr.clf.intercept_[0]),
+                     "normal_freq": normal_freq}, f)
 
     summary = {
         "lines": n_lines, "blocks": len(blocks), "train_blocks": len(tr), "test_blocks": len(te),
