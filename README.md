@@ -163,11 +163,22 @@ with one request at a time and with batching, then compares the cost per 1,000 e
 with calling Llama 3.3-70B on Groq ($0.59 / $0.79 per million input / output tokens). The
 teacher cost is estimated from the token counts of the same prompts and answers.
 
-| Setup | s / line | lines / s | USD per 1k lines |
-|---|---:|---:|---:|
-| Qwen2.5-1.5B + LoRA, batch 1 | TODO | TODO | TODO |
-| Qwen2.5-1.5B + LoRA, batch 16 | TODO | TODO | TODO |
-| Llama 3.3-70B on Groq (estimate) | | | TODO |
+Measured on 64 test lines (average request: 161 tokens in, 92 tokens out), with a T4 at
+$0.35 per hour:
+
+| Setup | s / line | lines / s | tokens / s | USD per 1k lines |
+|---|---:|---:|---:|---:|
+| Qwen2.5-1.5B + LoRA, batch 1 | 2.918 | 0.34 | 30 | 0.284 |
+| Qwen2.5-1.5B + LoRA, batch 16 | 0.251 | 3.99 | 344 | 0.024 |
+| Llama 3.3-70B on Groq (estimate) | | | | 0.168 |
+
+One request at a time, the small model is slow (about 3 s per explanation) and actually
+costs more than the API, because the GPU is paid for while it waits. With batches of 16 it
+is about 12 times faster and about 7 times cheaper than the teacher, and it fits in 3.4 GB
+of GPU memory. So running it locally only pays off when explanations can be grouped, which
+is the case when the detector flags many blocks at once. The GPU price is the GPU alone, not
+the whole VM, so the real gap is a bit smaller. Full numbers in
+[`results/benchmark/`](results/benchmark/).
 
 ## Limitations
 
