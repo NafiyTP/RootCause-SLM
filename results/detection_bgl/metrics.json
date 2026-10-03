@@ -1,0 +1,36 @@
+{
+  "lines": 4713493,
+  "window_minutes": 60,
+  "windows": 3619,
+  "train_windows": 2895,
+  "test_windows": 724,
+  "test_anomaly_rate": 0.1865,
+  "templates": 13603,
+  "test_windows_with_unseen_template": 412,
+  "parse_s": 79.6,
+  "detectors": {
+    "Level rule (FATAL/FAILURE/SEVERE/ERROR)": {
+      "precision": 0.7337,
+      "recall": 1.0,
+      "f1": 0.8464,
+      "flagged": 184,
+      "true_anomalies": 135
+    },
+    "PCA (unsupervised)": {
+      "precision": 0.2033,
+      "recall": 0.5407,
+      "f1": 0.2955,
+      "flagged": 359,
+      "true_anomalies": 135,
+      "fit_s": 36.61
+    },
+    "Logistic regression": {
+      "precision": 0.9722,
+      "recall": 0.5185,
+      "f1": 0.6763,
+      "flagged": 72,
+      "true_anomalies": 135,
+      "fit_s": 11.25
+    }
+  }
+}
