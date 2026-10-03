@@ -32,7 +32,7 @@
 \newcommand{\code}[1]{\texttt{#1}}
 
 \title{\textbf{RootCause-SLM}\\[2pt]
-\large Detecting HDFS anomalies and explaining them with a small language model,\\ and measuring where the explanations fail}
+\large Block-level anomaly detection on HDFS logs,\\ and an experiment on explaining anomalies with a small language model}
 \author{Yifan Wang\\ \small Télécom Paris\\ \small \url{https://github.com/NafiyTP/RootCause-SLM}}
 \date{October 2026}
 
@@ -40,46 +40,44 @@
 \maketitle
 
 \begin{abstract}
-Infrastructure logs are often too sensitive to send to an external API, which makes small
-language models that run locally attractive for log analysis. RootCause-SLM is a two-stage
-pipeline for HDFS logs. The first stage groups raw lines into block sessions and classifies
-each block from counts of message templates; on the full HDFS\_v1 log (11.2M lines, 575k
-blocks, chronological split) a logistic regression reaches an F1 of 0.973. The second stage
-explains a flagged block with Qwen2.5-1.5B-Instruct fine-tuned with LoRA on explanations
-written by Llama 3.3-70B. The student reproduces its teacher better than every baseline
-(ROUGE-L 0.506 on the reasoning, against 0.456 for template retrieval) and, with batching,
-costs about seven times less per explanation than calling the teacher. An audit against the
-raw logs shows the limit of this setup: on 250 anomalous test lines, the explanation of the
-fine-tuned model never mentions what is actually wrong with the block, and the teacher's
-explanation does so once. The evidence (a write that never completed, a failed delete, an
-orphan block) lies in other lines of the block, so the model can only guess, and distillation
-copies the guess faithfully. A simple rule that lists the events missing from a flagged block
-explains it better at no cost. On BGL, a less regular system, the same detector drops to
-F1 0.676 and a log-level rule does better, because most test windows contain templates never
-seen during training.
+This report studies anomaly detection on HDFS logs, and then asks whether a small language
+model running locally can explain the anomalies it finds. Raw lines are grouped into block
+sessions and each block is classified from counts of message templates. On the full HDFS\_v1
+log (11.2M lines, 575k blocks, chronological split) a logistic regression reaches an F1 of
+0.973, against 0.398 for a log-level rule and 0.090 for PCA, and an end-to-end run on 3,000
+consecutive test blocks flags exactly the 15 anomalies. The detector needs complete sessions
+and stable templates: on a truncated extract its F1 drops to 0.27, and on BGL, a less regular
+system, to 0.676, below a log-level rule (0.846). For the explanation experiment,
+Qwen2.5-1.5B-Instruct is fine-tuned with LoRA on explanations written by Llama 3.3-70B. The
+student reproduces its teacher better than every baseline (ROUGE-L 0.506 on the reasoning,
+against 0.456 for template retrieval) and, with batching, costs about seven times less per
+explanation. An audit against the raw logs shows the limit of the setup: on 250 anomalous
+test lines, the fine-tuned model never names what is actually wrong with the block, and the
+teacher does so once, because the evidence lies in other lines of the block. A simple list of
+the events missing from a flagged block explains it better at no cost.
 \end{abstract}
 
 \section{Introduction}
 
-Log anomaly detection on public benchmarks is largely a solved problem for regular systems
-such as HDFS, where a block id ties every line to a session and a few dozen message types
-describe almost every event~\cite{xu2009,he2016,du2017,zhu2023}. What operators actually need
-after an alert is the next step: an explanation of what went wrong. Large language models
-can write such explanations, but sending production logs to an external API is often not
-allowed. This project asks how far a small model, small enough to run on a single cheap GPU,
-can go on that task, and how to tell whether its explanations are right.
+Logs are often the first place an operator looks when a distributed system misbehaves, and
+they are far too large to read by hand. On HDFS, a block id ties every line to a session and a
+few dozen message types describe almost every event, which makes it the standard benchmark for
+log anomaly detection~\cite{xu2009,he2016,du2017,zhu2023}. The main part of this project is a
+block-level detector evaluated the way it would be used: on the full log, trained on the past
+and tested on the future, compared with the simple rule an operator would write by hand, and
+run on a second, less regular system to see where it breaks.
 
-The project went through three versions. The first one only had the explanation model, with
-the anomaly label given as input; the label had to come from somewhere, so the second
-version added a block-level detector and a script that chains both. The third version added
-what this report is mostly about: a benchmark of speed and cost, a test on a second system,
-and an audit that checks the explanations against the raw logs instead of against the
-teacher that produced the training data.
+After an alert, the next question is what went wrong. Large language models can write such
+explanations, but sending production logs to an external API is often not allowed. The second
+part is an experiment on that question: can a small model, small enough to run on a single
+cheap GPU, learn to explain anomalies from a large one, and how can one tell whether its
+explanations are right?
 
 \paragraph{Contributions.}
 \begin{itemize}
-  \item A block-level detector evaluated on the full HDFS\_v1 log with a chronological split,
-        compared with a log-level rule and PCA, and the same detectors on BGL.
+  \item A block-level detector evaluated on the full HDFS\_v1 log with a chronological split
+        (F1 0.973), compared with a log-level rule and PCA, with its two failure modes measured:
+        truncated sessions and an unstable template vocabulary (BGL).
   \item A teacher-student explanation model (Llama 3.3-70B $\rightarrow$ Qwen2.5-1.5B with LoRA),
         evaluated against five baselines, with its inference cost measured on a T4.
   \item An audit showing that neither the teacher nor the student identifies the block-level
@@ -196,8 +194,12 @@ The model was trained on single lines, so the pipeline has to choose one. For ev
 block it takes the line whose template pushes the score up the most: a template never seen in
 training if there is one, otherwise the one with the largest coefficient. That line is sent
 with the label \emph{Anomaly}. Independently of the model, the pipeline also lists the
-\emph{missing events}: the templates that at least 90\% of the normal training blocks contain
-but this block does not.
+\emph{missing events} (templates that at least 90\% of the normal training blocks contain but
+this block does not) and the \emph{rare events} (present in the block, seen in fewer than 5\% of
+normal blocks), and turns them into one English sentence with a short ordered list of rules, for
+example: \emph{The block was allocated but never stored: the events a normal write ends with
+(addStoredBlock, PacketResponder terminating) never appear. The block also logged
+java.io.IOException: Could not read from stream.}
 
 \section{Results}
 
@@ -371,6 +373,14 @@ terminating} never appear. For those 12 the line sent to the model is the \code{
 line, from which it can only guess. For the other 3, the selected line is the anomalous event
 itself (a redundant \code{addStoredBlock}, an empty packet): line selection works when the
 anomaly is something that happened, not when it is something that did not.
+
+Over the whole detection test period, the rules give a specific sentence to every one of the
+1,744 flagged blocks: 1,034 writes never stored, 247 failed deletes, 167 replicas reported
+twice, 150 empty packets, 138 re-replications, 5 blocks of no file and 3 replication time-outs.
+571 of them (33\%) also name the Java exception the block logged. The sentences describe the
+trace in the log, not its origin (a crashed node and a network failure can leave the same
+trace), and the rules are specific to HDFS. Of the 138 re-replications, 79 are false alarms of
+the detector, since re-replication also happens in normal blocks.
 
 \subsection{Speed and cost}
 

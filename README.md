@@ -1,38 +1,33 @@
 # RootCause-SLM
 
-A small pipeline for HDFS logs in two steps: first find the anomalous blocks, then explain
-them with a small language model that runs locally.
+Anomaly detection on HDFS logs, with an experiment on explaining the anomalies with a small
+language model that runs locally.
 
-- **Detection**: the raw lines are grouped by block id and each block is classified from
-  its template counts (logistic regression, with PCA and a simple rule as comparison).
-- **Explanation**: I fine-tuned Qwen2.5-1.5B-Instruct with LoRA so that, given a log line
-  and its label, it returns a short cause and a 3-step reasoning as JSON.
-
-The idea was to see how far a small local model can get, since sending infrastructure logs
-to an external API is often not an option. The explanation model was trained on annotations
-written by a larger model (Llama 3.3-70B through Groq), so it is a teacher-student setup:
-the 70B model writes the explanations once, the 1.5B model learns to reproduce them.
-
-The first version of this project only had the explanation part, with the label given as
-input. That was the main weakness (the label has to come from somewhere), so I added the
-detection step, a script that chains both, a benchmark of speed and cost, and an audit that
-checks the explanations against the raw logs instead of against the teacher.
+- **Detection** (the main part): the raw lines are grouped by block id and each block is
+  classified from its template counts. A logistic regression is compared with a log-level
+  rule and with PCA, on the full HDFS_v1 log and on a second system (BGL).
+- **Explanation** (the experiment): I fine-tuned Qwen2.5-1.5B-Instruct with LoRA on
+  explanations written by Llama 3.3-70B, to see whether a small local model can replace the
+  large one, since sending infrastructure logs to an external API is often not an option.
+  The pipeline sends one line of each flagged block to this model.
 
 Main results:
 
-- Detection on the full HDFS_v1 log (11M lines, chronological split): logistic regression
-  reaches F1 0.973 (precision 0.955, recall 0.992). The log level alone finds a quarter of
-  the anomalies. On BGL, a harder system, the same approach drops to F1 0.676 and a simple
-  log-level rule does better (0.846), because most test windows contain templates never seen
-  in training.
-- The fine-tuned 1.5B model reproduces the teacher better than every baseline (ROUGE-L
-  0.506 on the reasoning against 0.456 for template retrieval), and with batching it is
-  about 7 times cheaper than calling the 70B teacher.
-- But neither the teacher nor the student finds the real cause: on 250 anomalous test
-  lines, 0 explanations from the student and 1 from the teacher mention what is actually
-  wrong with the block. What is wrong is almost always somewhere else in the block (a
-  write that never finished, a failed delete), not in the line the model sees. A simple
-  "which usual events are missing" check in the pipeline is more useful than the LLM here.
+- **Detection works.** On the full HDFS_v1 log (11M lines, 575k blocks, chronological split)
+  the logistic regression reaches F1 0.973 (precision 0.955, recall 0.992). The log level
+  alone finds a quarter of the anomalies. On 3,000 consecutive test blocks the pipeline
+  flags exactly the 15 anomalies, with no false alarm, in 0.4 s.
+- **It has limits.** It needs complete sessions (on a truncated extract F1 drops to 0.27),
+  and on BGL, a less regular system, it drops to F1 0.676 and a log-level rule does better
+  (0.846), because most test windows contain templates never seen in training.
+- **The distillation works, the explanations do not.** The 1.5B model reproduces the
+  teacher better than every baseline (ROUGE-L 0.506 on the reasoning against 0.456 for
+  template retrieval) and, with batching, costs about 7 times less than calling the 70B
+  teacher. But an audit against the raw logs shows that neither model finds the real cause:
+  it is in other lines of the block (a write that never finished, a failed delete), not in
+  the one line the model sees. What works instead is a rule-based sentence built from the
+  events missing from the block and the rare events it contains: every block flagged in the
+  test period gets a specific one, at no cost.
 
 ## Data
 
@@ -229,14 +224,38 @@ Details and the hand-checked sample are in [`results/audit/`](results/audit/).
 `src/pipeline.py` takes a raw log file, scores every block with the logistic regression, and
 for each flagged block:
 
-- lists the **missing events**: templates that at least 90% of normal training blocks
-  contain but this block does not
+- lists the **missing events** (templates that at least 90% of normal training blocks
+  contain but this block does not) and the **rare events** (present here, seen in less than
+  5% of normal blocks)
+- turns them into **one plain-English sentence** with fixed rules, for example "The block was
+  allocated but never stored: the events a normal write ends with (addStoredBlock,
+  PacketResponder terminating) never appear. The block also logged java.io.IOException:
+  Could not read from stream."
 - picks the line that weighs the most in the decision (a template never seen in training if
   there is one, otherwise the one with the largest weight) and sends it to the fine-tuned
   model with the label "Anomaly"
 
-The output is a JSONL report with the block, its score, the missing events, the chosen line
-and the explanation.
+The output is a JSONL report with the block, its score, the sentence, the missing and rare
+events, the chosen line and the model's explanation.
+
+On the 1,744 blocks flagged in the test period of the full log, every block gets a specific
+sentence:
+
+| Sentence (short) | Flagged blocks |
+|---|---:|
+| allocated but never stored | 1,034 |
+| a delete failed (BlockInfo not found) | 247 |
+| replica reported as stored twice | 167 |
+| empty packet while writing | 150 |
+| block copied to another DataNode (re-replication) | 138 |
+| addStoredBlock for a block of no file | 5 |
+| pending replication timed out | 3 |
+
+571 of them (33%) also name the Java exception the block logged, which is the closest the
+log gets to a root cause. The sentences describe what the log shows, not why it happened
+(a crashed node or a network problem leave the same trace), and the rules are written for
+HDFS. Of the 138 re-replication blocks, 79 are false alarms of the detector: re-replication
+also happens in normal blocks.
 
 I tested it on 3,000 consecutive blocks from the test period, with all their lines (38,957
 lines, 15 anomalous blocks). It flagged exactly the 15 anomalies, with no false alarm, in

@@ -3,15 +3,16 @@ Full pipeline on a raw HDFS log file: detect anomalous blocks, then explain them
 
 1. group the lines by block id and score each block with the logistic regression
    trained by src/detect.py
-2. for every flagged block, pick the line that best explains the decision: a template
-   never seen in training first, otherwise the template with the largest weight
-3. list the events that almost every normal block has (90% or more of the normal
-   training blocks) but this block does not. Many HDFS anomalies are writes that never
-   finish, so what is missing says more than any single line
-4. send the chosen line to the fine-tuned Qwen2.5-1.5B with the label "Anomaly"
-
-The model still explains one line, not the whole block (that is how it was trained),
-but the label now comes from a detector instead of the ground truth.
+2. for every flagged block, list the missing events (templates that 90% or more of the
+   normal training blocks contain but this block does not) and the rare events (present
+   here, seen in less than 5% of normal blocks). Many HDFS anomalies are writes that
+   never finish, so what is missing says more than any single line
+3. turn them into one plain-English sentence with fixed rules (RULES below). No model is
+   involved, so the sentence is always well formed and matches the log
+4. optionally, pick the line that weighs most in the score (a template never seen in
+   training first) and send it to the fine-tuned Qwen2.5-1.5B with the label "Anomaly".
+   The model only sees that line, which is why its explanation is not reliable (see
+   src/audit_explanations.py)
 
 Usage:
     python src/detect.py --log HDFS.log --labels anomaly_label.csv   # train the detector first
@@ -23,6 +24,7 @@ import argparse
 import json
 import os
 import pickle
+import re
 import time
 from collections import defaultdict
 
@@ -69,6 +71,64 @@ def missing_events(lines, normal_freq, min_freq=0.9):
             if f >= min_freq and t not in present]
 
 
+def rare_events(lines, normal_freq, max_freq=0.05):
+    """Templates present in this block but found in less than max_freq of the normal blocks."""
+    seen, out = set(), []
+    for t, _ in lines:
+        if t not in seen and normal_freq.get(t, 0) < max_freq:
+            seen.add(t)
+            out.append(t)
+    return out
+
+
+# (what to look for, sentence). Checked in this order; the first match wins.
+RULES = [
+    (lambda missing, rare: any("addStoredBlock: blockMap updated" in t for t in missing),
+     "The block was allocated but never stored: the events a normal write ends with "
+     "(addStoredBlock, PacketResponder terminating) never appear."),
+    (lambda missing, rare: any("Unexpected error trying to delete" in t for t in rare),
+     "A delete failed: the DataNode had no record of the block (BlockInfo not found)."),
+    (lambda missing, rare: any("does not belong to any file" in t for t in rare),
+     "The NameNode received addStoredBlock for a block that belongs to no file."),
+    (lambda missing, rare: any("Redundant addStoredBlock" in t for t in rare),
+     "The same replica was reported as stored twice (redundant addStoredBlock)."),
+    (lambda missing, rare: any("empty packet" in t for t in rare),
+     "A DataNode received an empty packet while writing the block."),
+    (lambda missing, rare: any("timed out block" in t for t in rare),
+     "A pending replication of the block timed out."),
+    (lambda missing, rare: any("to replicate" in t or "Starting thread to transfer" in t for t in rare),
+     "The NameNode had to copy the block to another DataNode (re-replication), which "
+     "usually means a replica was lost or missing."),
+    (lambda missing, rare: bool(rare),
+     "The block contains events that normal blocks almost never have."),
+    (lambda missing, rare: bool(missing),
+     "Some events that normal blocks have are absent."),
+]
+
+
+def exceptions(rare):
+    """Exception names that appear in the rare events, e.g. 'java.io.IOException: Could not read from stream'."""
+    out = []
+    for t in rare:
+        m = re.search(r"((?:java|javax)\.[\w.]*(?:Exception|Error)\b(?::[^<]*)?)", t)
+        if m and m.group(1).strip() not in out:
+            out.append(m.group(1).strip())
+    return out
+
+
+def describe(missing, rare):
+    """One plain-English sentence from the missing and rare events. No model involved."""
+    sentence = "No single event stands out; the counts as a whole look unusual."
+    for test, s in RULES:
+        if test(missing, rare):
+            sentence = s
+            break
+    exc = exceptions(rare)
+    if exc:
+        sentence += " The block also logged " + "; ".join(exc) + "."
+    return sentence
+
+
 def pick_line(lines, vec, coefs):
     """The line whose template pushes the most towards 'anomaly'. Unseen templates win."""
     def weight(t):
@@ -107,9 +167,11 @@ def main():
     with open(args.out, "w", encoding="utf-8") as f:
         for rank, (score, b) in enumerate(flagged):
             line = pick_line(blocks[b], vec, coefs)
+            missing = missing_events(blocks[b], normal_freq)
+            rare = rare_events(blocks[b], normal_freq)
             row = {"block_id": b, "score": round(float(score), 4),
-                   "n_lines": len(blocks[b]), "line": line,
-                   "missing": missing_events(blocks[b], normal_freq)}
+                   "n_lines": len(blocks[b]), "summary": describe(missing, rare),
+                   "missing": missing, "rare": rare, "line": line}
             if model is not None and rank < args.top:
                 t1 = time.perf_counter()
                 r = explain(line, "Anomaly", model, tokenizer)
@@ -119,9 +181,12 @@ def main():
 
             if rank < args.top:
                 print(f"\n[{score:.2f}] {b} ({len(blocks[b])} lines)")
-                print(f"  line:  {line[:140]}")
-                for t in row["missing"]:
+                print(f"  {row['summary']}")
+                for t in missing:
                     print(f"  missing: {t}")
+                for t in rare:
+                    print(f"  rare:    {t}")
+                print(f"  line:  {line[:140]}")
                 if "cause" in row:
                     print(f"  cause: {row['cause']}")
                     print(f"  reasoning: {row['raisonnement']}")

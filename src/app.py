@@ -18,7 +18,8 @@ import time
 import gradio as gr
 
 from inference import explain, load_model
-from pipeline import load_detector, missing_events, pick_line, predict_proba, read_lines
+from pipeline import (describe, load_detector, missing_events, pick_line, predict_proba,
+                      rare_events, read_lines)
 
 VEC, COEFS, INTERCEPT, NORMAL_FREQ = load_detector()
 MODEL, TOKENIZER = None, None
@@ -47,11 +48,12 @@ def run_pipeline(text, top, use_llm):
     out = [f"**{len(ids)} blocks, {len(flagged)} flagged** (score > 0.5)\n"]
     for rank, (score, b) in enumerate(flagged[:int(top)]):
         lines = blocks[b]
-        present = {t for t, _ in lines}
-        rare = [t for t in present if NORMAL_FREQ.get(t, 0) < 0.05]
+        missing = missing_events(lines, NORMAL_FREQ)
+        rare = rare_events(lines, NORMAL_FREQ)
         line = pick_line(lines, VEC, COEFS)
         out.append(f"### {b}  ·  score {score:.3f}  ·  {len(lines)} lines")
-        for t in missing_events(lines, NORMAL_FREQ):
+        out.append(f"**{describe(missing, rare)}**\n")
+        for t in missing:
             out.append(f"- missing: `{short(t)}`")
         for t in rare:
             out.append(f"- rare: `{short(t)}`")
@@ -60,7 +62,8 @@ def run_pipeline(text, top, use_llm):
             model, tok = get_model()
             t0 = time.perf_counter()
             r = explain(line, "Anomaly", model, tok)
-            out.append(f"**Cause:** {r.get('cause')}\n\n**Raisonnement:** {r.get('raisonnement')}\n\n"
+            out.append("Fine-tuned model (sees only this line, not reliable):\n\n"
+                       f"**Cause:** {r.get('cause')}\n\n**Raisonnement:** {r.get('raisonnement')}\n\n"
                        f"_{time.perf_counter() - t0:.1f} s_\n")
     normal = len(ids) - len(flagged)
     if normal:
