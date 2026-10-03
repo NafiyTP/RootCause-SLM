@@ -47,15 +47,19 @@ def predict_proba(X, coefs, intercept):
     return 1.0 / (1.0 + np.exp(-(np.log1p(X) @ coefs + intercept)))
 
 
-def read_blocks(log_path):
-    """{block_id: [(template, raw line), ...]}"""
+def read_lines(lines):
+    """{block_id: [(template, raw line), ...]} from an iterable of raw lines."""
     blocks = defaultdict(list)
-    with open(log_path, encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            line = line.strip()
-            for b in set(BLK_RE.findall(line)):
-                blocks[b].append((template(line), line))
+    for line in lines:
+        line = line.strip()
+        for b in set(BLK_RE.findall(line)):
+            blocks[b].append((template(line), line))
     return blocks
+
+
+def read_blocks(log_path):
+    with open(log_path, encoding="utf-8", errors="ignore") as f:
+        return read_lines(f)
 
 
 def missing_events(lines, normal_freq, min_freq=0.9):

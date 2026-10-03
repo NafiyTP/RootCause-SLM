@@ -22,7 +22,9 @@ Main results:
 
 - Detection on the full HDFS_v1 log (11M lines, chronological split): logistic regression
   reaches F1 0.973 (precision 0.955, recall 0.992). The log level alone finds a quarter of
-  the anomalies.
+  the anomalies. On BGL, a harder system, the same approach drops to F1 0.676 and a simple
+  log-level rule does better (0.846), because most test windows contain templates never seen
+  in training.
 - The fine-tuned 1.5B model reproduces the teacher better than every baseline (ROUGE-L
   0.506 on the reasoning against 0.456 for template retrieval), and with batching it is
   about 7 times cheaper than calling the 70B teacher.
@@ -34,8 +36,8 @@ Main results:
 
 ## Data
 
-Logs and labels come from [Loghub](https://github.com/logpai/loghub) (HDFS_v1, a Yahoo
-cluster, 2008, about 11M lines). Labels are per block in `anomaly_label.csv`. The raw log is
+Logs and labels come from [Loghub](https://github.com/logpai/loghub) (HDFS_v1, Hadoop jobs on more
+than 200 Amazon EC2 nodes, 2008, about 11M lines). Labels are per block in `anomaly_label.csv`. The raw log is
 too big for the repo, `src/detect.py` reads it from wherever you downloaded it.
 
 For the explanation model I give each line the label of its block. Llama 3.3-70B only writes
@@ -113,6 +115,30 @@ for the full log). The detector is saved in `modele_detection/detector.pkl` as p
 (templates, weights, and how often each template appears in normal blocks), so it loads
 with any scikit-learn version. The full numbers are in
 [`results/detection/`](results/detection/).
+
+### Does it carry over? BGL
+
+HDFS is an easy dataset: 54 templates and very regular sessions. `src/detect_bgl.py` runs the
+same detectors on BGL (Blue Gene/L supercomputer, Loghub, 4.7M lines). There is no session id,
+so a session is a 60-minute window over the whole machine, anomalous if it contains at least
+one alert line. The level rule flags a window if one of its lines is FATAL, FAILURE, SEVERE or
+ERROR. Chronological split, test = last 724 windows (18.6% anomalous):
+
+| Detector | Precision | Recall | F1 | Flagged |
+|---|---:|---:|---:|---:|
+| Level rule (FATAL/FAILURE/SEVERE/ERROR) | 0.734 | 1.000 | 0.846 | 184 |
+| PCA (unsupervised) | 0.203 | 0.541 | 0.295 | 359 |
+| Logistic regression | 0.972 | 0.518 | 0.676 | 72 |
+
+The ranking is the opposite of HDFS: the simple level rule wins. The logistic regression is
+still very precise, but it misses half of the anomalous windows. The reason shows in the
+templates: my masking (numbers, hex values, IPs, paths) was written for HDFS, and on BGL it
+leaves 13,603 templates in training, and 412 of the 724 test windows (57%) contain a
+template never seen before. All of those land in the single `<UNK>` column, so a new kind of
+failure looks almost like a new kind of normal message. Detection on counts of templates
+only works if the templates are stable; on a real system that needs a proper log parser
+(for example Drain) and a model that can handle new templates, which I did not do here.
+Full numbers in [`results/detection_bgl/`](results/detection_bgl/).
 
 ## Step 2: explanation
 
@@ -262,13 +288,14 @@ the whole VM, so the real gap is a bit smaller. Full numbers in
 - **The detector needs complete sessions and labels.** The logistic regression is supervised,
   and it fails on blocks that are cut. PCA works without labels but its threshold does not
   transfer from one period to the next.
-- **HDFS is easy.** 54 templates and very regular sessions. `src/detect_bgl.py` runs the same
-  detectors on BGL (Blue Gene/L, Loghub), where there is no session id and templates are much
-  more varied.
+- **The detector does not generalize as is.** On BGL the template masking breaks down (13,603
+  templates, 57% of test windows with an unseen one) and the logistic regression loses to a
+  log-level rule. It needs a real parser and a way to handle new templates.
 
 What I would do next: give the model the whole flagged block (or the list of missing and
-rare events) instead of one line, and re-annotate at the block level so that the cause can
-actually be read from the input.
+rare events) instead of one line, re-annotate at the block level so that the cause can
+actually be read from the input, and replace the regex masking with a real parser (Drain) so
+that detection holds on systems like BGL.
 
 ## Repo structure
 
@@ -277,6 +304,7 @@ data/                  train and test sets for the explanation model (JSON and C
 modele_hdfs/           LoRA adapter, tokenizer, training history
 modele_detection/      trained detector (template list + logistic regression)
 results/detection/     detection metrics (full HDFS_v1 log)
+results/detection_bgl/ detection metrics on BGL
 results/audit/         explanations checked against the raw blocks
 results/eval_n527/     explanation metrics, predictions and examples on the full test set
 results/benchmark/     speed and cost of the fine-tuned model
@@ -289,6 +317,8 @@ src/evaluate.py        baselines, zero-shot, few-shot and fine-tuned evaluation
 src/inference.py       explain one log line with the fine-tuned model
 src/pipeline.py        detect anomalous blocks in a log file, then explain them
 src/benchmark.py       latency, throughput and cost
+src/app.py             Gradio demo: detection + live explanations (GPU)
+paper/                 write-up of the whole project (LaTeX source and PDF)
 evaluation_colab.ipynb runs the evaluation on a Colab T4
 pipeline_benchmark_colab.ipynb  runs the pipeline and the benchmark on a Colab T4
 ```
@@ -315,4 +345,8 @@ python src/pipeline.py --log some_logs.log --no-llm   # detection only
 
 # speed and cost (GPU)
 python src/benchmark.py
+
+# live demo (GPU, e.g. Colab; --share prints a public link)
+pip install gradio "huggingface-hub<1.0"
+python src/app.py --share
 ```

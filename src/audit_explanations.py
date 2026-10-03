@@ -4,8 +4,9 @@ Do the explanations point at what is actually wrong with the block?
 ROUGE and BERTScore only compare the fine-tuned model with the teacher. Here I check both
 against the raw log instead. For every anomalous test line, the script rebuilds the whole
 block from HDFS.log and finds the block-level evidence:
-  - events that almost every normal block has (90%+ of normal training blocks) but this
-    one does not: the write never completed
+  - the events that almost every normal block has (90%+ of normal training blocks) are
+    missing, including the addStoredBlock that confirms the block was stored: the write
+    never completed
   - otherwise the rare events it contains (seen in less than 5% of normal blocks), such
     as a failed delete or an addStoredBlock for a block that belongs to no file
 
@@ -48,7 +49,7 @@ EVIDENCE = {
 def block_evidence(templates, normal_freq):
     present = set(templates)
     missing = [t for t, f in normal_freq.items() if f >= 0.9 and t not in present]
-    if missing:
+    if any("addStoredBlock: blockMap updated" in t for t in missing):
         return "write never completed", missing
     rare = [t for t in present if normal_freq.get(t, 0) < 0.05]
     for name, (needle, _) in EVIDENCE.items():
