@@ -15,6 +15,8 @@ import json
 import math
 import os
 
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+
 import torch
 from peft import LoraConfig, TaskType, get_peft_model
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -28,9 +30,12 @@ SRC_DIR    = os.path.dirname(os.path.abspath(__file__))
 JSON_PATH  = os.path.join(SRC_DIR, "..", "data", "v2", "train_annotated.json")
 OUTPUT_DIR = os.path.join(SRC_DIR, "..", "modele_hdfs_v2")
 
+# Inputs are longer than in v1 (a whole block). The loss over a 152k-word vocabulary
+# needs a lot of memory per token, so on a 15 GB T4: one example at a time, gradient
+# checkpointing, and 16 accumulation steps to keep an effective batch size of 16.
 MAX_LENGTH   = 1536
-BATCH_SIZE   = 2
-GRAD_ACCUM   = 8      # effective batch size 16
+BATCH_SIZE   = 1
+GRAD_ACCUM   = 16     # effective batch size 16
 NUM_EPOCHS   = 5
 LR           = 2e-4
 WARMUP_RATIO = 0.05
@@ -95,6 +100,10 @@ def main():
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_NAME, torch_dtype=torch.float16 if device == "cuda" else torch.float32,
         device_map={"": device})
+    # recompute activations in the backward pass instead of keeping them: less memory, a bit slower
+    model.gradient_checkpointing_enable()
+    model.enable_input_require_grads()
+    model.config.use_cache = False
     model = get_peft_model(model, LoraConfig(
         task_type=TaskType.CAUSAL_LM, r=LORA_R, lora_alpha=LORA_ALPHA,
         lora_dropout=LORA_DROPOUT, target_modules=LORA_TARGETS, bias="none"))
