@@ -179,12 +179,13 @@ def main():
     n_a = next(iter(results.values()))["n_anomaly"] if results else 0
     md = [f"# v2 explanations, {len(test)} test blocks ({n_a} anomalous, {len(test) - n_a} normal)", "",
           "Scored against the raw log (gold = what is wrong in the whole block), not against the teacher.", "",
-          "| System | Valid JSON | Correct cause | Wrong cause | Invents on normal (random) | "
+          "Anomalous blocks: correct cause + wrong or vague cause + missed (says no problem) = 100%.", "",
+          "| System | Valid JSON | Correct cause | Wrong or vague | Missed | Invents on normal (random) | "
           "Invents on normal (re-replication) | Evidence in input |",
-          "|---|---:|---:|---:|---:|---:|---:|"]
+          "|---|---:|---:|---:|---:|---:|---:|---:|"]
     for s, r in results.items():
         md.append(f"| {names.get(s, s)} | {fmt(r['valid_json'])} | {fmt(r['correct_cause'])} | "
-                  f"{fmt(r['wrong_cause'])} | {fmt(r['invents_on_normal_random'])} | "
+                  f"{fmt(r['wrong_cause'])} | {fmt(r['missed'])} | {fmt(r['invents_on_normal_random'])} | "
                   f"{fmt(r['invents_on_normal_rereplication'])} | {fmt(r['evidence_supported'])} |")
     md += ["", "Rules define the gold categories, so their correct-cause score is 100% by construction;",
            "the question is how close the language models get, and how often they invent.", "",
