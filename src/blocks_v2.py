@@ -40,13 +40,27 @@ CATEGORY_WORDS = {
     "never_stored": r"never (been )?stored|not (been )?stored|never complet|not complet|incomplete|"
                     r"did not finish|never finish|unfinished|interrupted|missing addstoredblock|"
                     r"no addstoredblock|never (been )?(recorded|registered|confirmed)|write (failed|did not)|"
+                    r"missing (the )?(typical |usual |expected |normal )?(block )?(lifecycle|completion|write)|"
+                    r"lifecycle events|writeblock|could not read from stream|"
                     r"jamais (été )?(stock|enregistr|termin)|incomplet|inachev|interromp",
-    "failed_delete": r"delet|suppr",
-    "no_file": r"belong(s)? to no file|does not belong|not belong to any file|orphan|aucun fichier|n'appartient",
+    "failed_delete": r"delet\w* (error|fail)|fail\w* to delete|error (while |when )?(trying to )?delet|"
+                     r"could not delete|unable to delete|blockinfo not found|volumemap|suppression (échou|impossible)",
+    "no_file": r"belong(s|ing)? to (no|any) file|does not belong|orphan|aucun fichier|n'appartient",
     "redundant": r"redundant|twice|duplicate|redondant|deux fois|doublon",
     "empty_packet": r"empty packet|paquet vide",
     "replication_timeout": r"timed out|timeout|time-out|expir",
-    "re_replication": r"re-?replicat|replicat|copied to another|transfer(red)? to another|r[ée]plica",
+    "re_replication": r"re-?replicat|copied to another|transfer(red)? to another|r[ée]plicat|répliqu",
+}
+
+# Events the model cites in its "evidence" field: much more reliable than the wording.
+EVIDENCE_EVENTS = {
+    "never_stored": r"missing:.*(addstoredblock|packetresponder|received block .* of size)",
+    "failed_delete": r"unexpected error trying to delete|blockinfo not found",
+    "no_file": r"does not belong to any file",
+    "redundant": r"redundant addstoredblock",
+    "empty_packet": r"empty packet",
+    "replication_timeout": r"timed out block",
+    "re_replication": r"to replicate|starting thread to transfer",
 }
 
 
@@ -112,8 +126,12 @@ def predicted_categories(ans):
     """Categories an answer talks about (set). Empty set for 'nothing wrong'."""
     if not ans or not ans["anomalous"]:
         return set()
-    text = f"{ans['cause']} {ans['explanation']} {' '.join(ans['evidence'])}".lower()
-    return {c for c, pat in CATEGORY_WORDS.items() if re.search(pat, text)}
+    text = f"{ans['cause']} {ans['explanation']}".lower()
+    cats = {c for c, pat in CATEGORY_WORDS.items() if re.search(pat, text)}
+    for e in ans["evidence"]:
+        e = e.lower()
+        cats |= {c for c, pat in EVIDENCE_EVENTS.items() if re.search(pat, e)}
+    return cats
 
 
 def _norm(s):

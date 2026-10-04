@@ -11,7 +11,7 @@ Temperature 0, JSON output, results appended to a .jsonl file as they come, so t
 script can be stopped and restarted: blocks already done are skipped.
 
 Usage:
-    export GROQ_API_KEY=...
+    export GROQ_API_KEY=key1            # or key1,key2,key3: used in turn when one hits a limit
     python src/annotate_v2.py --split train
     python src/annotate_v2.py --split test
     python src/annotate_v2.py --split train --provider gemini --model gemini-2.0-flash
@@ -45,6 +45,47 @@ def list_models(base_url, key):
         return ["(could not list models)"]
 
 
+class KeyBlocked(Exception):
+    """This key cannot be used now: rate limit (with the delay in seconds) or no credit left."""
+
+    def __init__(self, delay, message):
+        super().__init__(message)
+        self.delay = delay
+
+
+class KeyPool:
+    """
+    Several keys of the same account, used in turn. A key that hits a limit is put aside
+    until its limit resets, and the next free key is used. When every key is blocked,
+    wait if the shortest block is short, otherwise stop (progress is saved).
+    """
+
+    def __init__(self, keys):
+        self.keys = keys
+        self.blocked_until = [0.0] * len(keys)
+        self.i = 0
+
+    def current(self):
+        now = time.time()
+        for k in range(len(self.keys)):
+            j = (self.i + k) % len(self.keys)
+            if self.blocked_until[j] <= now:
+                if j != self.i:
+                    print(f"  switching to key {j + 1}/{len(self.keys)}")
+                self.i = j
+                return self.keys[j]
+        wait = min(self.blocked_until) - now
+        if wait > 300:
+            raise SystemExit("every key is blocked (limits or credit). Progress is saved: "
+                             "run the same command again later, or add a key.")
+        print(f"  all keys rate-limited, waiting {wait:.0f}s")
+        time.sleep(wait)
+        return self.current()
+
+    def block(self, delay):
+        self.blocked_until[self.i] = time.time() + delay
+
+
 def call(base_url, key, model, prompt, json_mode=True, retries=6):
     body = {"model": model, "temperature": 0, "max_tokens": 400,
             "messages": [{"role": "system", "content": SYSTEM_PROMPT},
@@ -72,14 +113,16 @@ def call(base_url, key, model, prompt, json_mode=True, retries=6):
                 delay = float(r.headers.get("retry-after", wait))
             except ValueError:
                 delay = wait
-            if delay > 300:
-                # a daily quota, not a per-minute one: stop cleanly, progress is saved
-                raise SystemExit(f"rate limit reached ({r.text[:200]}). Progress is saved: "
-                                 "run the same command again later, or switch provider.")
+            if r.status_code == 429:
+                # let the caller try another key (or wait / stop if there is none)
+                raise KeyBlocked(delay, r.text[:200])
             print(f"  HTTP {r.status_code}, retry in {delay:.0f}s")
             time.sleep(delay)
             wait = min(wait * 2, 120)
             continue
+        if r.status_code in (401, 402, 403):
+            # invalid key or no credit left on it: put it aside for a day
+            raise KeyBlocked(86400, f"HTTP {r.status_code}: {r.text[:200]}")
         if r.status_code == 404 and "model" in r.text:
             raise SystemExit(f"model {model} not available for this key ({r.text[:200]}).\n"
                              f"Available models: {', '.join(list_models(base_url, key))}\n"
@@ -103,12 +146,14 @@ def main():
 
     base_url, key_env, default_model = PROVIDERS[args.provider]
     model = args.model or default_model
-    key = os.environ.get(key_env)
-    if not key:
-        raise SystemExit(f"set {key_env} first, e.g. export {key_env}=...")
+    # one key, or several separated by commas (same account, e.g. several prepaid keys)
+    keys = [k.strip() for k in os.environ.get(key_env, "").split(",") if k.strip()]
+    if not keys:
+        raise SystemExit(f"set {key_env} first, e.g. export {key_env}=key1,key2")
     if args.list_models:
-        print("\n".join(list_models(base_url, key)))
+        print("\n".join(list_models(base_url, keys[0])))
         return
+    pool = KeyPool(keys)
 
     with open(os.path.join(DATA_DIR, f"{args.split}_blocks.json"), encoding="utf-8") as f:
         blocks = json.load(f)
@@ -123,13 +168,19 @@ def main():
                 r = json.loads(line)
                 if r.get("answer") is not None:
                     done[r["block_id"]] = r
-    print(f"{len(blocks)} blocks, {len(done)} already annotated, model {model}")
+    print(f"{len(blocks)} blocks, {len(done)} already annotated, model {model}, {len(keys)} key(s)")
 
     with open(raw_path, "a", encoding="utf-8") as out:
         for i, b in enumerate(blocks):
             if b["block_id"] in done:
                 continue
-            text = call(base_url, key, model, b["prompt"])
+            while True:
+                try:
+                    text = call(base_url, pool.current(), model, b["prompt"])
+                    break
+                except KeyBlocked as e:
+                    print(f"  key {pool.i + 1} blocked for {e.delay:.0f}s ({e})")
+                    pool.block(e.delay)
             ans = parse_answer(text)
             rec = {"block_id": b["block_id"], "model": model, "raw": text, "answer": ans}
             out.write(json.dumps(rec, ensure_ascii=False) + "\n")
