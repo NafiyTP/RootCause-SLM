@@ -2,7 +2,9 @@
 Annotates the v2 blocks with a large model (the teacher), one block per API call.
 
 Works with any OpenAI-compatible chat API. Two presets:
-  --provider groq    Llama 3.3-70B on Groq (key in GROQ_API_KEY), as in v1
+  --provider groq    GPT-OSS 120B on Groq by default (key in GROQ_API_KEY). v1 used
+                     llama-3.3-70b-versatile, which not every account can access
+                     (--model llama-3.3-70b-versatile to use it)
   --provider gemini  Gemini through Google's OpenAI-compatible endpoint (key in GEMINI_API_KEY)
 
 Temperature 0, JSON output, results appended to a .jsonl file as they come, so the
@@ -29,16 +31,28 @@ from detect import ROOT
 
 DATA_DIR = os.path.join(ROOT, "data", "v2")
 PROVIDERS = {
-    "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "llama-3.3-70b-versatile"),
+    "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY", "openai/gpt-oss-120b"),
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "GEMINI_API_KEY",
                "gemini-2.0-flash"),
 }
+
+
+def list_models(base_url, key):
+    try:
+        r = requests.get(f"{base_url}/models", headers={"Authorization": f"Bearer {key}"}, timeout=30)
+        return sorted(m["id"] for m in r.json().get("data", []))
+    except (requests.RequestException, ValueError, KeyError):
+        return ["(could not list models)"]
 
 
 def call(base_url, key, model, prompt, json_mode=True, retries=6):
     body = {"model": model, "temperature": 0, "max_tokens": 400,
             "messages": [{"role": "system", "content": SYSTEM_PROMPT},
                          {"role": "user", "content": prompt}]}
+    if "gpt-oss" in model:
+        # reasoning model: keep the hidden reasoning short and leave room for the answer
+        body["reasoning_effort"] = "low"
+        body["max_tokens"] = 2000
     if json_mode:
         body["response_format"] = {"type": "json_object"}
     wait = 5
@@ -66,6 +80,10 @@ def call(base_url, key, model, prompt, json_mode=True, retries=6):
             time.sleep(delay)
             wait = min(wait * 2, 120)
             continue
+        if r.status_code == 404 and "model" in r.text:
+            raise SystemExit(f"model {model} not available for this key ({r.text[:200]}).\n"
+                             f"Available models: {', '.join(list_models(base_url, key))}\n"
+                             "Pick one with --model.")
         if r.status_code == 400 and json_mode:
             # some models/providers refuse response_format: ask again without it
             return call(base_url, key, model, prompt, json_mode=False, retries=retries)
@@ -80,6 +98,7 @@ def main():
     ap.add_argument("--model", default=None, help="override the provider's default model")
     ap.add_argument("--sleep", type=float, default=3.0, help="seconds between calls (rate limits)")
     ap.add_argument("--limit", type=int, default=None, help="only the first n blocks (to test)")
+    ap.add_argument("--list-models", action="store_true", help="print the models this key can use")
     args = ap.parse_args()
 
     base_url, key_env, default_model = PROVIDERS[args.provider]
@@ -87,6 +106,9 @@ def main():
     key = os.environ.get(key_env)
     if not key:
         raise SystemExit(f"set {key_env} first, e.g. export {key_env}=...")
+    if args.list_models:
+        print("\n".join(list_models(base_url, key)))
+        return
 
     with open(os.path.join(DATA_DIR, f"{args.split}_blocks.json"), encoding="utf-8") as f:
         blocks = json.load(f)
