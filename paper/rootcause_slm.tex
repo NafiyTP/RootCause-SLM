@@ -34,7 +34,7 @@
 \title{\textbf{RootCause-SLM}\\[2pt]
 \large Block-level anomaly detection on HDFS logs,\\ and an experiment on explaining anomalies with a small language model}
 \author{Yifan Wang\\ \small Télécom Paris\\ \small \url{https://github.com/NafiyTP/RootCause-SLM}}
-\date{July 2027}
+\date{}
 
 \begin{document}
 \maketitle
@@ -484,7 +484,9 @@ than the API, because the GPU is paid for while it waits (Table~\ref{tab:cost}).
 of 16 it is about 12 times faster and about 7 times cheaper than the teacher, with a peak GPU
 memory of 3.4 GB. Running locally pays off only when explanations can be grouped, which is the
 case when the detector flags many blocks at once. The GPU price covers the GPU alone, so the
-real gap is somewhat smaller.
+real gap is somewhat smaller. These numbers are for v1 inputs (one line, about 160 tokens);
+v2 inputs are about three times longer, so both sides cost more per explanation, and the
+benchmark was not re-run for v2.
 
 \section{Discussion}
 

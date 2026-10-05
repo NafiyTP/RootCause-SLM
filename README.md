@@ -374,6 +374,10 @@ is the case when the detector flags many blocks at once. The GPU price is the GP
 the whole VM, so the real gap is a bit smaller. Full numbers in
 [`results/benchmark/`](results/benchmark/).
 
+These numbers are for the v1 model (one line in, about 160 tokens). v2 inputs are a whole
+block summary, about three times longer, so both the local model and the API cost more per
+explanation; I did not re-run the benchmark for v2. The conclusion about batching holds.
+
 ## Limitations
 
 - **v1 justifies a label, it does not find a cause.** Labels are per block and the model sees
