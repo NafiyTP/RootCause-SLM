@@ -53,8 +53,13 @@ student reproduces its teacher better than every baseline (ROUGE-L 0.506 on the 
 against 0.456 for template retrieval) and, with batching, costs about seven times less per
 explanation. An audit against the raw logs shows the limit of the setup: on 250 anomalous
 test lines, the fine-tuned model never names what is actually wrong with the block, and the
-teacher does so once, because the evidence lies in other lines of the block. A simple list of
-the events missing from a flagged block explains it better at no cost.
+teacher does so once, because the evidence lies in other lines of the block. A second version
+gives the same small model a summary of the whole block instead of one line, with new
+annotations from GPT-OSS 120B and an evaluation against the raw log: the fine-tuned 1.5B model
+then names the right cause for 63\% of the anomalous test blocks, close to its teacher (67\%),
+and for 100\% of the three most common failures, where the one-line version scored between 0 and 27\%.
+It inherits its teacher's blind spots, which makes the quality of the annotations, not the
+size of the student, the next limit.
 \end{abstract}
 
 \section{Introduction}
@@ -82,6 +87,8 @@ explanations are right?
         evaluated against five baselines, with its inference cost measured on a T4.
   \item An audit showing that neither the teacher nor the student identifies the block-level
         evidence, with an analysis of why, and a zero-cost alternative (missing events) that does.
+  \item A second version with block-level input, evaluated against the raw log, in which the
+        same 1.5B student gets close to a 120B teacher on finding the cause.
 \end{itemize}
 
 \section{Data}
@@ -189,7 +196,7 @@ the targets are short and very repetitive.}
 \label{fig:train}
 \end{figure}
 
-\subsection{From a flagged block to an explanation}
+\subsection{From a flagged block to an explanation}\label{sec:rules}
 The model was trained on single lines, so the pipeline has to choose one. For every flagged
 block it takes the line whose template pushes the score up the most: a template never seen in
 training if there is one, otherwise the one with the largest coefficient. That line is sent
@@ -364,6 +371,77 @@ block points to an unauthorised connection. On normal lines the explanations are
 they only describe the event. The fine-tuned model uses 8 distinct causes on the test set,
 the teacher 19.
 
+\subsection{v2: explaining from the whole block}
+
+The audit points at the input, so the second version changes the input and keeps the model.
+The student now receives a summary of the whole block: every event type with its count, in
+order of first appearance, the raw WARN and exception lines, and the five events a normal write
+always has. It is not told the label and answers in JSON with \code{anomalous}, \code{cause},
+\code{evidence} (events from the summary, \code{missing:} for an absent usual event) and a short
+\code{explanation}. The data use the detector's chronological split: 409 training blocks and
+123 test blocks (83 anomalous, sampled per kind of failure, and 40 normal, half of them
+re-replication blocks, the pattern behind all of the detector's false alarms). The teacher is
+GPT-OSS 120B on Groq (temperature 0, one block per call); the student is the same
+Qwen2.5-1.5B with the same LoRA recipe, trained with batch size 1, 16 accumulation steps and
+gradient checkpointing to fit the longer inputs on a T4 (validation perplexity 1.28 to 1.16).
+
+Every system is scored against the raw log. The gold cause comes from the pipeline rules
+(Section~\ref{sec:rules}); an answer is matched to a cause mainly through the events it cites,
+with a few keywords as a complement. I checked this matching by hand on all 123 teacher answers:
+the 57 counted correct are correct and the 26 counted wrong are real mistakes.
+
+\begin{table}[t]
+\centering
+\caption{v2 explanations on 123 test blocks, scored against the raw log. For anomalous blocks,
+correct + wrong or vague + missed = 100\%. ``Invents'': share of normal blocks for which the
+system claims a problem. v1 is told the block is anomalous, so its normal-block columns are empty.}
+\label{tab:v2}
+\small\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
+\toprule
+ & Valid & Correct & Wrong or & Missed & \multicolumn{2}{c}{Invents on normal} \\
+System & JSON & cause & vague & & random & re-repl. \\
+\midrule
+Rules (pipeline sentence) & 100\% & 100\% & 0\% & 0\% & 60\% & 100\% \\
+Teacher, GPT-OSS 120B & 100\% & 67\% & 13\% & 19\% & 40\% & 0\% \\
+v1 student (one line) & 99\% & 39\% & 61\% & 0\% & -- & -- \\
+Qwen2.5-1.5B, no fine-tuning & 27\% & 4\% & 0\% & 96\% & 0\% & 0\% \\
+\textbf{v2 student (block summary)} & \textbf{100\%} & \textbf{63\%} & 24\% & 13\% & 40\% & 0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[t]
+\centering
+\caption{Correct cause per kind of failure (v2 test set).}
+\label{tab:v2cat}
+\small
+\begin{tabular}{lrrrr}
+\toprule
+Failure & n & Teacher & v1 & v2 \\
+\midrule
+Write never completed & 15 & 100\% & 0\% & \textbf{100\%} \\
+Failed delete & 15 & 100\% & 13\% & \textbf{100\%} \\
+Redundant addStoredBlock & 15 & 100\% & 27\% & \textbf{100\%} \\
+Block of no file & 5 & 100\% & 20\% & 60\% \\
+Replication time-out & 3 & 100\% & 100\% & 100\% \\
+Empty packet & 15 & 0\% & 47\% & 7\% \\
+Re-replication & 15 & 20\% & 100\% & 0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Tables~\ref{tab:v2} and~\ref{tab:v2cat} give the results. With the whole block as input, the
+1.5B student names the right cause for 63\% of the anomalous blocks, close to its 120B teacher
+(67\%), and 98\% of the evidence it cites is really in its input. On the three most common
+failures it reaches 100\%, where v1 scored 0\%, 13\% and 27\%. Without fine-tuning the same model
+produces valid JSON only 27\% of the time. The student also inherits its teacher's blind spots:
+both treat normal block deletions as a problem (all 8 problems v2 invents on normal blocks are
+``block deletion'') and both miss empty packets, which are INFO lines with no error. Its 0\% on
+normal re-replication blocks is not discrimination: it never calls a re-replication a problem,
+including the anomalous ones. v1 does well on re-replication and empty packets only because,
+for those blocks, the line it receives is the anomalous event itself.
+
 \subsection{End to end}
 The pipeline was run on 3,000 consecutive blocks from the detection test period, with all
 their lines (38,957 lines, 15 anomalous blocks). It flagged exactly the 15 anomalies, with no
@@ -430,6 +508,13 @@ events cover the rest. On HDFS, a structured description of the block is a bette
 than a generated sentence about one line. A language model becomes useful again if its input
 is that structured description, so that the cause can actually be read from it.
 
+\paragraph{Changing the input fixed it; the teacher is now the limit.} v2 confirms the
+diagnosis: with the same model size and recipe, giving the block instead of one line takes the
+most common failure from 0\% to 100\%. What remains are the teacher's mistakes, copied by the
+student. Better annotations (or a few corrected by hand) would help more than a bigger
+student. Rules and model are also complementary: the rules never miss the cause but call every
+re-replication a problem, the model is never fooled by re-replications but has blind spots.
+
 \paragraph{Detection is easy where templates are stable.} The logistic regression on template
 counts is close to perfect on HDFS and loses to a one-line rule on BGL. The difference is the
 template vocabulary, not the model.
@@ -445,10 +530,10 @@ template vocabulary, not the model.
   \item Template extraction is a set of regular expressions designed for HDFS, which breaks down
         on BGL.
 \end{itemize}
-The next steps follow from the audit: give the model the whole flagged block, or the list of
-missing and rare events, instead of a single line; re-annotate at the block level so that the
-target cause is supported by the input; and replace the regular expressions with a learned
-parser such as Drain so that detection holds on less regular systems.
+The next steps: correct the v2 annotations where the teacher is systematically wrong (normal
+deletions, empty packets), combine the rules with the model, and replace the regular
+expressions with a learned parser such as Drain so that detection holds on less regular
+systems.
 
 \section{Conclusion}
 A logistic regression on template counts detects HDFS anomalies almost perfectly, and a
@@ -456,7 +541,8 @@ A logistic regression on template counts detects HDFS anomalies almost perfectly
 than any baseline, at a fraction of the cost when requests are batched. But reproducing the
 teacher is not the same as explaining the anomaly: neither model finds the evidence, because
 it is not in the line they are given. Checking the explanations against the raw logs, rather
-than against the teacher, is what revealed it.
+than against the teacher, is what revealed it, and giving the model the whole block is what
+fixed it: the same small model then gets within five points of a 120B teacher.
 
 \begin{thebibliography}{99}\small
 \bibitem{xu2009} W.~Xu, L.~Huang, A.~Fox, D.~Patterson, M.~I.~Jordan.
@@ -490,6 +576,9 @@ python src/evaluate.py                                           # Table 3 (GPU)
 python src/audit_explanations.py --log HDFS.log                  # Figure 4
 python src/pipeline.py --log HDFS_window_3k.log --top 10          # Section 4.5
 python src/benchmark.py                                          # Table 4 (GPU)
+python src/build_dataset_v2.py --log HDFS.log --labels anomaly_label.csv  # v2 data
+python src/annotate_v2.py --split train; python src/annotate_v2.py --split test
+python src/train_v2.py; python src/eval_v2.py                     # Tables 5-6 (GPU)
 python src/app.py --share                                        # live demo (GPU)
 \end{lstlisting}
 

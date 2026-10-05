@@ -1,0 +1,222 @@
+{
+  "rules": {
+    "n": 123,
+    "n_anomaly": 83,
+    "n_normal": 40,
+    "valid_json": 1.0,
+    "flags_problem": 1.0,
+    "correct_cause": 1.0,
+    "wrong_cause": 0.0,
+    "missed": 0.0,
+    "invents_on_normal": 0.8,
+    "invents_on_normal_random": 0.6,
+    "invents_on_normal_rereplication": 1.0,
+    "evidence_supported": null,
+    "per_category": {
+      "never_stored": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "failed_delete": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "no_file": {
+        "n": 5,
+        "correct": 1.0
+      },
+      "redundant": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "empty_packet": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "replication_timeout": {
+        "n": 3,
+        "correct": 1.0
+      },
+      "re_replication": {
+        "n": 15,
+        "correct": 1.0
+      }
+    }
+  },
+  "teacher": {
+    "n": 123,
+    "n_anomaly": 83,
+    "n_normal": 40,
+    "valid_json": 1.0,
+    "flags_problem": 0.8072289156626506,
+    "correct_cause": 0.6746987951807228,
+    "wrong_cause": 0.13253012048192772,
+    "missed": 0.1927710843373494,
+    "invents_on_normal": 0.2,
+    "invents_on_normal_random": 0.4,
+    "invents_on_normal_rereplication": 0.0,
+    "evidence_supported": 0.9862078977932637,
+    "per_category": {
+      "never_stored": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "failed_delete": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "no_file": {
+        "n": 5,
+        "correct": 1.0
+      },
+      "redundant": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "empty_packet": {
+        "n": 15,
+        "correct": 0.0
+      },
+      "replication_timeout": {
+        "n": 3,
+        "correct": 1.0
+      },
+      "re_replication": {
+        "n": 15,
+        "correct": 0.2
+      }
+    }
+  },
+  "v1": {
+    "n": 123,
+    "n_anomaly": 83,
+    "n_normal": 40,
+    "valid_json": 0.991869918699187,
+    "flags_problem": 1.0,
+    "correct_cause": 0.3855421686746988,
+    "wrong_cause": 0.6144578313253012,
+    "missed": 0.0,
+    "invents_on_normal": null,
+    "invents_on_normal_random": null,
+    "invents_on_normal_rereplication": null,
+    "evidence_supported": null,
+    "per_category": {
+      "never_stored": {
+        "n": 15,
+        "correct": 0.0
+      },
+      "failed_delete": {
+        "n": 15,
+        "correct": 0.13333333333333333
+      },
+      "no_file": {
+        "n": 5,
+        "correct": 0.2
+      },
+      "redundant": {
+        "n": 15,
+        "correct": 0.26666666666666666
+      },
+      "empty_packet": {
+        "n": 15,
+        "correct": 0.4666666666666667
+      },
+      "replication_timeout": {
+        "n": 3,
+        "correct": 1.0
+      },
+      "re_replication": {
+        "n": 15,
+        "correct": 1.0
+      }
+    }
+  },
+  "base": {
+    "n": 123,
+    "n_anomaly": 83,
+    "n_normal": 40,
+    "valid_json": 0.2682926829268293,
+    "flags_problem": 0.03614457831325301,
+    "correct_cause": 0.03614457831325301,
+    "wrong_cause": 0.0,
+    "missed": 0.963855421686747,
+    "invents_on_normal": 0.0,
+    "invents_on_normal_random": 0.0,
+    "invents_on_normal_rereplication": 0.0,
+    "evidence_supported": 1.0,
+    "per_category": {
+      "never_stored": {
+        "n": 15,
+        "correct": 0.0
+      },
+      "failed_delete": {
+        "n": 15,
+        "correct": 0.0
+      },
+      "no_file": {
+        "n": 5,
+        "correct": 0.0
+      },
+      "redundant": {
+        "n": 15,
+        "correct": 0.0
+      },
+      "empty_packet": {
+        "n": 15,
+        "correct": 0.0
+      },
+      "replication_timeout": {
+        "n": 3,
+        "correct": 1.0
+      },
+      "re_replication": {
+        "n": 15,
+        "correct": 0.0
+      }
+    }
+  },
+  "v2": {
+    "n": 123,
+    "n_anomaly": 83,
+    "n_normal": 40,
+    "valid_json": 1.0,
+    "flags_problem": 0.8674698795180723,
+    "correct_cause": 0.6265060240963856,
+    "wrong_cause": 0.24096385542168675,
+    "missed": 0.13253012048192772,
+    "invents_on_normal": 0.2,
+    "invents_on_normal_random": 0.4,
+    "invents_on_normal_rereplication": 0.0,
+    "evidence_supported": 0.9829268292682928,
+    "per_category": {
+      "never_stored": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "failed_delete": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "no_file": {
+        "n": 5,
+        "correct": 0.6
+      },
+      "redundant": {
+        "n": 15,
+        "correct": 1.0
+      },
+      "empty_packet": {
+        "n": 15,
+        "correct": 0.06666666666666667
+      },
+      "replication_timeout": {
+        "n": 3,
+        "correct": 1.0
+      },
+      "re_replication": {
+        "n": 15,
+        "correct": 0.0
+      }
+    }
+  }
+}

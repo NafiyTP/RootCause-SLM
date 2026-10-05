@@ -7,9 +7,9 @@ language model that runs locally.
   classified from its template counts. A logistic regression is compared with a log-level
   rule and with PCA, on the full HDFS_v1 log and on a second system (BGL).
 - **Explanation** (the experiment): I fine-tuned Qwen2.5-1.5B-Instruct with LoRA on
-  explanations written by Llama 3.3-70B, to see whether a small local model can replace the
+  explanations written by a large model, to see whether a small local model can replace the
   large one, since sending infrastructure logs to an external API is often not an option.
-  The pipeline sends one line of each flagged block to this model.
+  v1 gave the model one line of the flagged block; v2 gives it a summary of the whole block.
 
 Main results:
 
@@ -20,14 +20,19 @@ Main results:
 - **It has limits.** It needs complete sessions (on a truncated extract F1 drops to 0.27),
   and on BGL, a less regular system, it drops to F1 0.676 and a log-level rule does better
   (0.846), because most test windows contain templates never seen in training.
-- **The distillation works, the explanations do not.** The 1.5B model reproduces the
+- **v1: the distillation works, the explanations do not.** The 1.5B model reproduces the
   teacher better than every baseline (ROUGE-L 0.506 on the reasoning against 0.456 for
   template retrieval) and, with batching, costs about 7 times less than calling the 70B
   teacher. But an audit against the raw logs shows that neither model finds the real cause:
   it is in other lines of the block (a write that never finished, a failed delete), not in
-  the one line the model sees. What works instead is a rule-based sentence built from the
-  events missing from the block and the rare events it contains: every block flagged in the
-  test period gets a specific one, at no cost.
+  the one line the model sees. A rule-based sentence built from the events missing from the
+  block and the rare events it contains explains every flagged block, at no cost.
+- **v2: with the whole block as input, the small model finds the cause.** Scored against
+  the raw log on 123 test blocks, the fine-tuned 1.5B model names the right cause for 63% of
+  the anomalous blocks, close to its 120B teacher (67%), and 100% for the three most common
+  failures (write never completed: 0% in v1; failed delete; redundant addStoredBlock). Its
+  remaining errors are its teacher's: it treats normal block deletions as anomalies and
+  misses empty packets.
 
 ## Data
 
@@ -135,7 +140,7 @@ only works if the templates are stable; on a real system that needs a proper log
 (for example Drain) and a model that can handle new templates, which I did not do here.
 Full numbers in [`results/detection_bgl/`](results/detection_bgl/).
 
-## Step 2: explanation
+## Step 2, v1: explaining from one line
 
 ### Training
 
@@ -189,7 +194,7 @@ Note: the first version of this README reported numbers from a 20-example check 
 lines). A resume bug in the old evaluation script made the full run reuse those results.
 The table above replaces them.
 
-### Audit: do the explanations find the real cause?
+### Audit (v1): do the explanations find the real cause?
 
 The scores above only say how close each system gets to the teacher. To check the
 explanations against the logs themselves, `src/audit_explanations.py` rebuilds the whole
@@ -218,6 +223,83 @@ in the block points to an unauthorized connection. On normal lines the explanati
 fine, because they only describe the event. So the fine-tuning worked (the student copies
 the teacher well), but what it copies is a guess, because the cause is not in the input.
 Details and the hand-checked sample are in [`results/audit/`](results/audit/).
+
+## Step 2, v2: explaining from the whole block
+
+The v1 audit showed what was missing: the model only saw one line. v2 changes the input, the
+annotations and the evaluation, and keeps the same small model and the same LoRA recipe.
+
+**Input.** A summary of the whole block: every event type with its count, in order of first
+appearance, the raw WARN and exception lines, and the five events a normal write always has.
+The model is not told the label: it has to say itself whether there is a problem.
+
+**Output.** JSON in English: `anomalous` (true/false), `cause`, `evidence` (the events it
+relies on, `missing: ...` for an absent usual event) and a one or two sentence `explanation`.
+
+**Data** (`src/build_dataset_v2.py`). Same chronological split as the detector: 409 training
+blocks from the past, 123 test blocks from the future. Anomalous blocks are sampled per kind
+of failure (up to 45 per kind in training, 15 in test), so rare failures are present. Normal
+blocks are half random and half re-replication blocks, the pattern behind all of the
+detector's false alarms, to check whether a model invents a problem.
+
+**Teacher** (`src/annotate_v2.py`). GPT-OSS 120B on Groq, temperature 0, one block per call,
+JSON output (Llama 3.3-70B, the v1 teacher, was not available on my account).
+
+**Student** (`src/train_v2.py`). Qwen2.5-1.5B-Instruct, LoRA r=16 on q/k/v/o, loss on the
+answer only, 5 epochs. The inputs are longer than in v1, so on a T4: batch 1 with 16
+accumulation steps and gradient checkpointing. Validation perplexity goes from 1.28 to 1.16.
+
+**Evaluation** (`src/eval_v2.py`). Every system is scored against the raw log, not against
+the teacher. The gold cause of each anomalous block comes from the same rules as the pipeline
+sentence. An answer is matched to a cause mainly through the events it cites as evidence
+(much more reliable than its wording), plus a few keywords. I checked this matching by hand on
+all 123 teacher answers: the 57 counted correct are correct, the 26 counted wrong are real
+mistakes.
+
+| System | Valid JSON | Correct cause | Wrong or vague | Missed | Invents on normal (random) | Invents on normal (re-replication) |
+|---|---:|---:|---:|---:|---:|---:|
+| Rules (pipeline sentence) | 100% | 100% | 0% | 0% | 60% | 100% |
+| Teacher, GPT-OSS 120B | 100% | 67% | 13% | 19% | 40% | 0% |
+| v1 student (one line) | 99% | 39% | 61% | 0% | - | - |
+| Qwen2.5-1.5B, no fine-tuning | 27% | 4% | 0% | 96% | 0% | 0% |
+| **v2 student (block summary)** | **100%** | **63%** | 24% | 13% | 40% | 0% |
+
+Correct cause per kind of failure:
+
+| Failure | n | Teacher | v1 | v2 |
+|---|---:|---:|---:|---:|
+| write never completed | 15 | 100% | 0% | **100%** |
+| failed delete | 15 | 100% | 13% | **100%** |
+| redundant addStoredBlock | 15 | 100% | 27% | **100%** |
+| block of no file | 5 | 100% | 20% | 60% |
+| replication time-out | 3 | 100% | 100% | 100% |
+| empty packet | 15 | 0% | 47% | 7% |
+| re-replication | 15 | 20% | 100% | 0% |
+
+What this shows:
+
+- **The input was the problem.** With the same model size, the most common failure (a write
+  that never completed) goes from 0% in v1 to 100% in v2, and failed deletes and redundant
+  addStoredBlock from 13% and 27% to 100%.
+- **The small model gets close to its teacher**: 63% against 67%, with 80 times fewer
+  parameters, and 98% of the evidence it cites is really in its input.
+- **Fine-tuning is necessary.** The same model without it produces valid JSON 27% of the time.
+- **The student inherits its teacher's blind spots.** Both treat normal block deletions as a
+  problem (all 8 problems v2 invents on normal blocks are "block deletion"), and both miss
+  empty packets, which are INFO lines with no error. The next step is better annotations,
+  not a bigger student.
+- **The 0% on re-replication normal blocks is not discrimination**: v2 never calls a
+  re-replication a problem, including when it is one (0% on that category). v1 scores well on
+  re-replication and empty packets only because, for those blocks, the line it gets is the
+  anomalous event itself.
+- **Rules and model are complementary.** The rules never miss the cause but call every
+  re-replication a problem; the model is never fooled by re-replications but has blind spots.
+  A combination (rules for the cause, the model for the wording and to discard benign
+  re-replications) is the natural next step.
+
+Full numbers, predictions of every system and side-by-side examples: [`results/v2/`](results/v2/).
+The adapter is in `modele_hdfs_v2/`, the annotations in `data/v2/`. `v2_colab.ipynb` runs the
+whole v2 (annotation, training, evaluation) on Colab.
 
 ## Putting both together
 
@@ -294,10 +376,10 @@ the whole VM, so the real gap is a bit smaller. Full numbers in
 
 ## Limitations
 
-- **The explanation model justifies a label, it does not find a cause.** Labels are per block
-  and the model sees one line. All 250 test anomalies are INFO lines whose templates also
-  appear with the Normal label, so there is nothing in the line itself that explains the
-  anomaly. The audit confirms it: 0 of 250 student explanations mention the real evidence.
+- **v1 justifies a label, it does not find a cause.** Labels are per block and the model sees
+  one line. The audit confirms it: 0 of 250 student explanations mention the real evidence.
+  v2 fixes this by changing the input, but inherits its teacher's blind spots (normal
+  deletions seen as anomalies, empty packets missed).
 - **Small and repetitive training data.** 69 training anomalies over 29 different causes, and
   only 15 message templates overall. The validation perplexity is already 1.19 after one epoch,
   and on the test set the model only uses 8 distinct causes (the references have 19).
@@ -311,10 +393,10 @@ the whole VM, so the real gap is a bit smaller. Full numbers in
   templates, 57% of test windows with an unseen one) and the logistic regression loses to a
   log-level rule. It needs a real parser and a way to handle new templates.
 
-What I would do next: give the model the whole flagged block (or the list of missing and
-rare events) instead of one line, re-annotate at the block level so that the cause can
-actually be read from the input, and replace the regex masking with a real parser (Drain) so
-that detection holds on systems like BGL.
+What I would do next: improve the v2 annotations where the teacher is wrong (tell it that
+deletions are part of a normal lifecycle and that an empty packet is a problem, or correct
+those labels by hand), combine the rules and the model, and replace the regex masking with a
+real parser (Drain) so that detection holds on systems like BGL.
 
 ## Repo structure
 
@@ -327,6 +409,9 @@ results/detection_bgl/ detection metrics on BGL
 results/audit/         explanations checked against the raw blocks
 results/eval_n527/     explanation metrics, predictions and examples on the full test set
 results/benchmark/     speed and cost of the fine-tuned model
+results/v2/            v2 evaluation: metrics, predictions of every system, examples
+data/v2/               v2 blocks (summaries) and teacher annotations
+modele_hdfs_v2/        v2 LoRA adapter
 src/detect.py          block-level detection (rule, PCA, logistic regression)
 src/detect_bgl.py      the same detectors on BGL, with time windows as sessions
 src/audit_explanations.py  checks the explanations against the whole block
@@ -337,9 +422,15 @@ src/inference.py       explain one log line with the fine-tuned model
 src/pipeline.py        detect anomalous blocks in a log file, then explain them
 src/benchmark.py       latency, throughput and cost
 src/app.py             Gradio demo: detection + live explanations (GPU)
+src/blocks_v2.py       v2 block summary, gold categories and scoring
+src/build_dataset_v2.py  v2 train/test blocks from the full log
+src/annotate_v2.py     v2 teacher annotations (Groq or Gemini API, several keys)
+src/train_v2.py        v2 LoRA training
+src/eval_v2.py         v2 evaluation of rules, teacher, v1, base model and v2
 paper/                 write-up of the whole project (LaTeX source and PDF)
 evaluation_colab.ipynb runs the evaluation on a Colab T4
 pipeline_benchmark_colab.ipynb  runs the pipeline and the benchmark on a Colab T4
+v2_colab.ipynb         runs the whole v2 on Colab
 ```
 
 ## Usage
@@ -364,6 +455,12 @@ python src/pipeline.py --log some_logs.log --no-llm   # detection only
 
 # speed and cost (GPU)
 python src/benchmark.py
+
+# v2 (block-level explanations)
+python src/build_dataset_v2.py --log path/to/HDFS.log --labels path/to/anomaly_label.csv
+GROQ_API_KEY=... python src/annotate_v2.py --split train   # then --split test
+python src/train_v2.py                   # GPU
+python src/eval_v2.py                    # GPU for v1, base and v2
 
 # live demo (GPU, e.g. Colab; --share prints a public link)
 pip install gradio "huggingface-hub<1.0"
