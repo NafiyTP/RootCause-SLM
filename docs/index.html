@@ -1,0 +1,522 @@
+<title>Yifan Wesly Wang</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------- tokens ---------- */
+  :root{
+    color-scheme: light;
+    --bg:#F4F6FB; --surface:#FFFFFF; --surface-2:#EAEEF7;
+    --text:#12151F; --text-muted:#565F6E; --border:#D9DFEA;
+    --accent:#2648D6; --accent-strong:#3D5FEC; --accent-2:#6B5CA5; --on-accent:#FFFFFF;
+    --header-bg:rgba(244,246,251,.82);
+    --shadow:0 1px 2px rgba(18,21,31,.06), 0 10px 28px -14px rgba(18,21,31,.18);
+
+    --font-display:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+    --font-body:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+
+    --space-1:.5rem; --space-2:.75rem; --space-3:1rem; --space-4:1.5rem;
+    --space-5:2rem; --space-6:3rem; --space-7:4.5rem; --space-8:6rem;
+    --radius-sm:2px; --radius-md:3px; --radius-lg:4px;
+    --content-max:74rem; --text-max:36rem; --gutter:clamp(1.25rem,4vw,3rem);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#12151D; --surface:#181D28; --surface-2:#1E2432;
+      --text:#E8EAF0; --text-muted:#8D96A6; --border:#2B3242;
+      --accent:#6E8CFF; --accent-strong:#6E8CFF; --accent-2:#9A8FC9; --on-accent:#0E1320;
+      --header-bg:rgba(18,21,29,.78);
+      --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px -16px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#12151D; --surface:#181D28; --surface-2:#1E2432;
+    --text:#E8EAF0; --text-muted:#8D96A6; --border:#2B3242;
+    --accent:#6E8CFF; --accent-strong:#6E8CFF; --accent-2:#9A8FC9; --on-accent:#0E1320;
+    --header-bg:rgba(18,21,29,.78);
+    --shadow:0 1px 2px rgba(0,0,0,.35), 0 14px 34px -16px rgba(0,0,0,.6);
+  }
+
+  /* ---------- base ---------- */
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--font-body); font-size:1rem; line-height:1.65;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  h1,h2,h3{font-family:var(--font-display); color:var(--text); margin:0; text-wrap:balance; font-weight:700;}
+  h2,h3{font-weight:600;}
+  p{margin:0;}
+  a{color:inherit;}
+  ul{margin:0; padding:0; list-style:none;}
+  img{max-width:100%;}
+  ::selection{background:var(--accent-strong); color:var(--on-accent);}
+  :focus-visible{outline:2px solid var(--accent-strong); outline-offset:3px; border-radius:2px;}
+  html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    *{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important;}
+  }
+
+  .wrap{max-width:var(--content-max); margin-inline:auto; padding-inline:var(--gutter);}
+  .prose{max-width:var(--text-max);}
+  section{padding-block: var(--space-8);}
+  section + section{border-top:1px solid var(--border);}
+
+  .eyebrow{
+    font-family:var(--font-display); font-size:.8125rem; color:var(--accent);
+    margin-bottom:var(--space-3);
+  }
+  .muted{color:var(--text-muted);}
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky; top:0; z-index:40;
+    padding-top:calc(env(safe-area-inset-top,0px) + .9rem);
+    padding-bottom:.9rem;
+    background:var(--header-bg); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--border);
+  }
+  header .wrap{display:flex; align-items:center; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap;}
+  .logo{font-family:var(--font-display); font-weight:700; font-size:1rem; letter-spacing:.02em; text-decoration:none;}
+  .logo span{color:var(--accent);}
+  @media (prefers-reduced-motion: no-preference){
+    .logo span{animation:blink 1s step-end infinite;}
+  }
+  nav{display:flex; gap:var(--space-4); flex-wrap:wrap;}
+  nav a{
+    font-family:var(--font-display); font-size:.8rem; text-decoration:none; color:var(--text-muted);
+    padding-block:.25rem; border-bottom:1px solid transparent; transition:color .15s, border-color .15s;
+  }
+  nav a:hover{color:var(--text); border-color:var(--accent-strong);}
+
+  /* ---------- hero ---------- */
+  #hero{position:relative; overflow:hidden; padding-block: var(--space-7) var(--space-8);}
+  #hero .grid{
+    position:relative; z-index:1;
+    display:grid; grid-template-columns:1.25fr .95fr; gap:var(--space-7);
+    align-items:start;
+  }
+  @media (max-width:860px){ #hero .grid{grid-template-columns:1fr;} }
+
+  .trace-field{position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.5;}
+  .trace-field svg{width:100%; height:100%; display:block;}
+  .trace{fill:none; stroke:var(--accent-strong); stroke-width:1.25; opacity:.16;}
+  .node{fill:var(--accent-strong); opacity:.4;}
+  .node--pulse{transform-origin:center; transform-box:fill-box;}
+  @media (prefers-reduced-motion: no-preference){
+    .node--pulse{animation:pulse 3.4s ease-in-out infinite;}
+  }
+  @keyframes pulse{
+    0%,100%{opacity:.35; transform:scale(1);}
+    50%{opacity:.9; transform:scale(1.9);}
+  }
+
+  h1{font-size:clamp(2.1rem, 1.4rem + 3.2vw, 3.75rem); line-height:1.05; letter-spacing:normal;}
+  .role{font-family:var(--font-display); font-size:clamp(.95rem,.85rem + .4vw,1.15rem); color:var(--text-muted); margin-top:var(--space-3);}
+  .lede{margin-top:var(--space-4); max-width:36rem; color:var(--text); font-size:1.0625rem;}
+  .lede em{font-style:normal; color:var(--accent);}
+
+  .status{
+    display:inline-flex; align-items:center; gap:.55em; margin-top:var(--space-5);
+    font-family:var(--font-display); font-size:.8125rem; color:var(--text-muted);
+    border:1px solid var(--border); padding:.5em .85em; border-radius:var(--radius-sm); background:var(--surface);
+  }
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--accent-strong); flex:none;}
+  @media (prefers-reduced-motion: no-preference){
+    .dot{animation:blink 2.6s ease-in-out infinite;}
+  }
+  @keyframes blink{0%,100%{opacity:1;} 50%{opacity:.25;}}
+
+  .cta-row{display:flex; gap:var(--space-3); flex-wrap:wrap; margin-top:var(--space-5);}
+  .btn{
+    font-family:var(--font-display); font-weight:700; font-size:.875rem; letter-spacing:.01em;
+    padding:.85em 1.3em; border-radius:var(--radius-sm); text-decoration:none;
+    display:inline-flex; align-items:center; gap:.5em; border:1px solid transparent;
+    transition:transform .15s, box-shadow .15s, border-color .15s, background .15s;
+  }
+  .btn-primary{background:var(--accent); color:var(--on-accent);}
+  .btn-primary:hover{box-shadow:var(--shadow); transform:translateY(-1px);}
+  .btn-outline{background:transparent; color:var(--text); border-color:var(--border);}
+  .btn-outline:hover{border-color:var(--accent-strong); color:var(--accent-strong);}
+
+  /* ---------- instrument panel ---------- */
+  .panel{
+    position:relative; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:var(--radius-md); padding:var(--space-5); box-shadow:var(--shadow);
+  }
+  .panel-bar{display:flex; gap:.35rem; margin-bottom:var(--space-4);}
+  .panel-bar span{width:8px; height:8px; border-radius:50%; background:var(--border);}
+  .panel::before,.panel::after{
+    content:""; position:absolute; width:16px; height:16px; border-color:var(--accent-strong); opacity:.6;
+  }
+  .panel::before{top:-1px; left:-1px; border-top:2px solid; border-left:2px solid; border-top-left-radius:4px;}
+  .panel::after{bottom:-1px; right:-1px; border-bottom:2px solid; border-right:2px solid; border-bottom-right-radius:4px;}
+  .panel dl{display:grid; grid-template-columns:auto 1fr; gap:var(--space-2) var(--space-4); margin:0;}
+  .panel dt{font-family:var(--font-display); font-size:.6875rem; letter-spacing:.08em; color:var(--text-muted); text-transform:uppercase; padding-top:.15em;}
+  .panel dd{margin:0; font-size:.9375rem;}
+  .panel .row{grid-column:1 / -1; height:1px; background:var(--border); margin-block:.35rem;}
+
+  /* ---------- about ---------- */
+  #about .cols{display:grid; grid-template-columns:1.4fr 1fr; gap:var(--space-7);}
+  @media (max-width:800px){ #about .cols{grid-template-columns:1fr;} }
+  #about p{font-size:1.0625rem;}
+  #about p + p{margin-top:var(--space-4);}
+  .spec{border:1px solid var(--border); border-radius:var(--radius-md); padding:var(--space-4); background:var(--surface);}
+  .spec h3{font-size:.75rem; font-family:var(--font-display); text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); margin-bottom:var(--space-3);}
+  .spec dl{display:grid; grid-template-columns:1fr; gap:var(--space-3);}
+  .spec dt{font-family:var(--font-display); font-size:.75rem; color:var(--accent); margin-bottom:.2em;}
+  .spec dd{margin:0; font-size:.9rem; color:var(--text);}
+
+  /* ---------- projects ---------- */
+  .project{
+    display:grid; grid-template-columns:14rem 1fr; gap:var(--space-5);
+    padding-block:var(--space-6); border-top:1px solid var(--border);
+  }
+  .project:first-of-type{border-top:none; padding-top:0;}
+  @media (max-width:760px){ .project{grid-template-columns:1fr; gap:var(--space-3);} }
+
+  .project .meta{display:flex; flex-direction:column; gap:var(--space-3);}
+  .category{font-family:var(--font-display); font-size:.8125rem; color:var(--accent-2);}
+  .date{font-family:var(--font-display); font-size:.75rem; color:var(--text-muted);}
+  .tags{display:flex; flex-wrap:wrap; gap:.4rem;}
+  .tag{
+    font-family:var(--font-display); font-size:.6875rem; color:var(--text-muted);
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:.25em .55em; white-space:nowrap;
+  }
+
+  .project h3{font-size:var(--fs-h3, clamp(1.2rem,1.1rem+.5vw,1.5rem)); margin-bottom:var(--space-3);}
+  .project .desc{max-width:38rem; color:var(--text);}
+  .project .highlights{margin-top:var(--space-3); max-width:38rem; display:flex; flex-direction:column; gap:.55rem;}
+  .project .highlights li{position:relative; padding-left:1.1em; font-size:.9375rem; color:var(--text-muted); line-height:1.55;}
+  .project .highlights li::before{content:">"; position:absolute; left:0; color:var(--accent-strong);}
+  .project .highlights strong{color:var(--text); font-weight:600;}
+
+  /* ---------- compare chart ---------- */
+  .compare{margin-top:var(--space-4); max-width:34rem; display:flex; flex-direction:column; gap:var(--space-2);}
+  .compare-label{font-size:.75rem; color:var(--text-muted); margin-bottom:var(--space-1);}
+  .compare-row{display:flex; align-items:center; gap:var(--space-3);}
+  .compare-name{width:6.5rem; flex:none; font-size:.8125rem; color:var(--text-muted);}
+  .compare-track{flex:1; height:20px; background:var(--surface-2); border-radius:0 var(--radius-sm) var(--radius-sm) 0; overflow:hidden;}
+  .compare-bar{height:100%; background:var(--accent); border-radius:0 4px 4px 0; transition:filter .15s;}
+  .compare-bar:hover{filter:brightness(1.15);}
+  .compare-value{width:3.4rem; flex:none; text-align:right; font-size:.8125rem; font-weight:600; color:var(--text);}
+
+  /* ---------- log (education/leadership) ---------- */
+  .log{display:flex; flex-direction:column;}
+  .log-item{display:grid; grid-template-columns:10rem 1fr; gap:var(--space-4); padding-block:var(--space-3);}
+  @media (max-width:560px){ .log-item{grid-template-columns:1fr; gap:.25rem;} }
+  .log-item .when{font-family:var(--font-display); font-size:.8125rem; color:var(--text-muted); padding-top:.15em;}
+  .log-item .what strong{display:block; font-size:1rem; margin-bottom:.2em;}
+  .log-item .what span{color:var(--text-muted); font-size:.9375rem;}
+  .log-group + .log-group{margin-top:var(--space-6);}
+  .log-title{font-family:var(--font-display); font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--accent); margin-bottom:var(--space-2);}
+
+  /* ---------- contact ---------- */
+  #contact h2{margin-bottom:var(--space-3);}
+  #contact .lede{max-width:34rem; margin-bottom:var(--space-5);}
+  .contact-actions{display:flex; gap:var(--space-3); flex-wrap:wrap; align-items:center;}
+  .contact-email{font-family:var(--font-display); font-size:.9375rem; color:var(--text-muted);}
+
+  footer{padding-block:var(--space-5); border-top:1px solid var(--border);}
+  footer .wrap{display:flex; justify-content:space-between; gap:var(--space-3); flex-wrap:wrap;
+    font-family:var(--font-display); font-size:.75rem; color:var(--text-muted);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+
+  h2{font-size:clamp(1.5rem,1.3rem+1vw,2rem);}
+</style>
+
+<header>
+  <div class="wrap">
+    <a class="logo" href="#hero">yww<span>_</span></a>
+    <nav>
+      <a href="#about">#about</a>
+      <a href="#projects">#projects</a>
+      <a href="#education">#education</a>
+      <a href="#contact">#contact</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section id="hero">
+    <div class="trace-field" aria-hidden="true">
+      <svg viewBox="0 0 900 520" preserveAspectRatio="xMidYMid slice">
+        <path class="trace" d="M -10 90 L 130 90 L 130 170 L 300 170"/>
+        <path class="trace" d="M -10 300 L 100 300 L 100 380 L 250 380 L 250 340 L 380 340"/>
+        <path class="trace" d="M 910 70 L 740 70 L 740 150 L 600 150"/>
+        <path class="trace" d="M 910 430 L 780 430 L 780 350 L 660 350 L 660 390 L 520 390"/>
+        <path class="trace" d="M 460 520 L 460 430 L 380 430"/>
+        <path class="trace" d="M 300 170 L 300 240 L 380 240"/>
+        <circle class="node" cx="300" cy="170" r="4"/>
+        <circle class="node" cx="380" cy="340" r="4"/>
+        <circle class="node" cx="600" cy="150" r="4"/>
+        <circle class="node" cx="520" cy="390" r="4"/>
+        <circle class="node node--pulse" cx="380" cy="240" r="4"/>
+      </svg>
+    </div>
+
+    <div class="wrap grid">
+      <div>
+        <p class="eyebrow">// ai/ml research &amp; applied engineering</p>
+        <h1>Yifan Wesly Wang</h1>
+        <p class="role">MVA, ENS Paris-Saclay &middot; Télécom Paris</p>
+        <p class="lede">I study and build sequence models. Lately that's meant tracing <em>induction circuits</em> inside state-space models, fine-tuning LLMs for applied pipelines, and coordinating multi-agent systems. My background in signal processing and stochastic methods shapes how I read what's happening inside a model, not just how it scores.</p>
+
+        <div class="status">
+          <span class="dot" aria-hidden="true"></span>
+          $ open to ai/ml research &amp; applied scientist internships, 2027
+        </div>
+
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#projects">View projects</a>
+          <a class="btn btn-outline" href="mailto:ywang-24@telecom-paris.fr">Email me</a>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+        <dl>
+          <dt>Program</dt><dd>MVA, ENS Paris-Saclay, 2026–2027<br>Télécom Paris, 2024–2027</dd>
+          <div class="row"></div>
+          <dt>Focus</dt><dd>Interpretability &middot; LLMs &middot; Time series</dd>
+          <div class="row"></div>
+          <dt>Based in</dt><dd>Paris, France</dd>
+          <div class="row"></div>
+          <dt>Open to</dt><dd>Relocation for a research or applied&nbsp;ML internship</dd>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap cols">
+      <div>
+        <p class="eyebrow">// about</p>
+        <h2>Signal processing background, ML systems focus</h2>
+        <div style="margin-top:var(--space-5)">
+          <p>I'm an engineering student at Télécom Paris (2024–2027), currently in my final year at ENS Paris-Saclay specializing in the MVA master's (Mathématiques, Vision, Apprentissage). My coursework has run from signal processing and deep learning to stochastic processes and numerical analysis, and that combination shapes how I approach machine learning. I like connecting classical tools (Kalman filters, ARMA models, state-space theory) to how modern sequence models actually behave on the inside.</p>
+          <p>Recent work spans mechanistic interpretability, LLM fine-tuning for applied pipelines, and multi-agent systems. Projects below go into the specifics. Outside coursework, I'm Head of Partnerships for Télécom IA, the school's AI student association.</p>
+        </div>
+      </div>
+
+      <div class="spec">
+        <h3>Technical foundations</h3>
+        <dl>
+          <div>
+            <dt>Languages</dt>
+            <dd>Python, C++</dd>
+          </div>
+          <div>
+            <dt>ML / DL</dt>
+            <dd>PyTorch, HuggingFace Transformers, LoRA fine-tuning, TransformerLens</dd>
+          </div>
+          <div>
+            <dt>Research areas</dt>
+            <dd>Mechanistic interpretability, LLMs, time series &amp; signal processing, pose estimation, multi-agent systems</dd>
+          </div>
+          <div>
+            <dt>Math foundations</dt>
+            <dd>Stochastic processes, numerical analysis, state-space models &amp; filtering</dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects">
+    <div class="wrap">
+      <p class="eyebrow">// projects</p>
+      <h2>Five projects, roughly in order of how much they'd tell a lab about how I work</h2>
+
+      <div style="margin-top:var(--space-6)">
+
+        <article class="project">
+          <div class="meta">
+            <span class="category">Research &middot; Interpretability</span>
+            <span class="date">2026</span>
+            <div class="tags">
+              <span class="tag">PyTorch</span>
+              <span class="tag">TransformerLens</span>
+              <span class="tag">Activation Patching</span>
+              <span class="tag">State-Space Models</span>
+            </div>
+          </div>
+          <div>
+            <h3>Induction circuits: Transformers vs. state-space models</h3>
+            <p class="desc">A mechanistic-interpretability study asking whether Transformers and Mamba-style state-space models solve in-context induction the same way. It connects a background in state-space theory and filtering (Kalman, ARMA) directly to circuit-level analysis of modern sequence models.</p>
+            <div class="compare">
+              <p class="compare-label">Induction accuracy, best checkpoint</p>
+              <div class="compare-row">
+                <span class="compare-name">Transformer</span>
+                <div class="compare-track"><div class="compare-bar" style="width:85.4%" title="Transformer: 85.4% induction accuracy"></div></div>
+                <span class="compare-value">85.4%</span>
+              </div>
+              <div class="compare-row">
+                <span class="compare-name">Mamba (SSM)</span>
+                <div class="compare-track"><div class="compare-bar" style="width:86.9%" title="Mamba: 86.9% induction accuracy"></div></div>
+                <span class="compare-value">86.9%</span>
+              </div>
+            </div>
+            <ul class="highlights">
+              <li>Built the full stack from scratch: an induction-task generator, a TransformerLens baseline, and a minimal Mamba block in pure PyTorch, wired up for activation patching and pole/eigenvalue analysis.</li>
+              <li>Transformer reaches <strong>85.4%</strong> induction accuracy through a circuit localized to two attention heads in layer 1. Patching those heads alone recovers 68–80% of full performance.</li>
+              <li>Mamba reaches <strong>86.9%</strong> once a subtle bug was found and fixed: AdamW's weight decay was quietly preventing the induction circuit from forming at all.</li>
+              <li>Unlike the Transformer, Mamba's circuit is distributed across all of layer 1. No single channel is individually necessary or sufficient, and the "slow pole ⇒ important channel" hypothesis doesn't hold up (near-zero correlation).</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="project">
+          <div class="meta">
+            <span class="category">Applied ML &middot; LLMOps</span>
+            <span class="date">May–Jul 2026</span>
+            <div class="tags">
+              <span class="tag">PyTorch</span>
+              <span class="tag">HuggingFace</span>
+              <span class="tag">LoRA</span>
+              <span class="tag">Qwen2.5</span>
+              <span class="tag">Llama-3.3-70B</span>
+            </div>
+          </div>
+          <div>
+            <h3>RootCause-SLM: AIOps log anomaly detection</h3>
+            <p class="desc">An end-to-end AIOps pipeline that fine-tunes a small language model to flag and explain anomalies in HDFS system logs, using a much larger model as a teacher.</p>
+            <ul class="highlights">
+              <li>Distilled annotations from Llama-3.3-70B (via Groq) to fine-tune Qwen2.5-1.5B-Instruct with LoRA over 5 epochs, best validation loss <strong>0.099</strong>.</li>
+              <li>Countered heavy class imbalance in the log data with a WeightedRandomSampler.</li>
+              <li>Built an evaluation harness around ROUGE-L and BERTScore for judging generated explanations.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="project">
+          <div class="meta">
+            <span class="category">Applied ML &middot; Multi-Agent Systems</span>
+            <span class="date">Mar–Jun 2025</span>
+            <div class="tags">
+              <span class="tag">Python</span>
+              <span class="tag">OpenAI API</span>
+              <span class="tag">HuggingFace</span>
+              <span class="tag">CUDA</span>
+            </div>
+          </div>
+          <div>
+            <h3>Secretary-AI: multi-agent medical secretary automation</h3>
+            <p class="desc">A multi-agent system that automates repetitive work inside a medical secretariat: scheduling appointments, triaging inbox messages, drafting prescriptions, all behind one consistent model interface.</p>
+            <ul class="highlights">
+              <li>Designed a common <strong>BaseAIModel</strong> interface so agents can call an external API (OpenAI) or run local inference (HuggingFace Transformers on CUDA) with no change to agent logic.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="project">
+          <div class="meta">
+            <span class="category">Computer Vision &middot; Ongoing</span>
+            <span class="date">2026</span>
+            <div class="tags">
+              <span class="tag">Python</span>
+              <span class="tag">Pose Estimation</span>
+              <span class="tag">Time Series</span>
+            </div>
+          </div>
+          <div>
+            <h3>SportsAnalytics: pose estimation + time-series foundation model</h3>
+            <p class="desc">A collaborative project extending Pose2Sim/OpenCap-style motion capture with a time-series foundation model, aimed at movement analysis and performance evaluation for athletes.</p>
+            <ul class="highlights">
+              <li>Working prototype pulls 2D keypoints with rtmlib (RTMPose Wholebody) from test footage of a bench-press exercise.</li>
+              <li>Builds on ideas from SOMA, Pose2Sim, and OpenCap.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="project">
+          <div class="meta">
+            <span class="category">Numerical Methods &middot; Coursework</span>
+            <span class="date">Group project</span>
+            <div class="tags">
+              <span class="tag">Numerical Analysis</span>
+              <span class="tag">Scientific Computing</span>
+            </div>
+          </div>
+          <div>
+            <h3>Global carbon cycle numerical model</h3>
+            <p class="desc">A group project modeling the global carbon cycle to compare how different numerical integrators behave over long-horizon climate projections.</p>
+            <ul class="highlights">
+              <li>Implemented and compared Euler, Heun, RK4, and Adams–Moulton 3 integrators.</li>
+              <li>Full convergence, consistency, and stability analysis behind the projected scenarios.</li>
+            </ul>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section id="education">
+    <div class="wrap">
+      <p class="eyebrow">// education &amp; leadership</p>
+      <h2>Télécom Paris, and what surrounds it</h2>
+
+      <div style="margin-top:var(--space-6)" class="log">
+        <div class="log-group">
+          <p class="log-title">Education</p>
+          <div class="log-item">
+            <span class="when">2026 – 2027</span>
+            <div class="what">
+              <strong>ENS Paris-Saclay</strong>
+              <span>MVA Master's (Mathématiques, Vision, Apprentissage). Final-year specialization, taken in place of Télécom Paris's internal third-year track.</span>
+            </div>
+          </div>
+          <div class="log-item">
+            <span class="when">2024 – 2027</span>
+            <div class="what">
+              <strong>Télécom Paris</strong>
+              <span>Engineering degree. GPA 4.0/4.0.</span>
+            </div>
+          </div>
+          <div class="log-item">
+            <span class="when">2022 – 2024</span>
+            <div class="what">
+              <strong>Lycée Hoche, Versailles</strong>
+              <span>MPSI / MP, classes préparatoires. Returned as a colleur (oral exam tutor) in MP, 2024–2025.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="log-group">
+          <p class="log-title">Leadership</p>
+          <div class="log-item">
+            <span class="when">May 2025 – May 2026</span>
+            <div class="what">
+              <strong>Télécom IA</strong>
+              <span>Head of Partnerships. The school's AI student association.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="wrap">
+      <p class="eyebrow">// contact</p>
+      <h2>Let's talk</h2>
+      <p class="lede">Open to AI/ML research and applied scientist internships for 2027. Happy to send the full CV or walk through any project above in more depth.</p>
+      <div class="contact-actions">
+        <a class="btn btn-primary" href="mailto:ywang-24@telecom-paris.fr">Email me</a>
+        <span class="contact-email">ywang-24@telecom-paris.fr</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Yifan Wesly Wang &middot; Paris, France</span>
+    <span>Updated September 2026</span>
+  </div>
+</footer>
