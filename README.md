@@ -3,6 +3,9 @@
 Anomaly detection on HDFS logs, with an experiment on explaining the anomalies with a small
 language model that runs locally.
 
+**Live demo:** https://nafiytp.github.io/RootCause-SLM/ (runs in the browser: paste logs, edit a block,
+move the detection threshold, and ask the small model (WebGPU) or the large one (your Groq key) why)
+
 - **Detection** (the main part): the raw lines are grouped by block id and each block is
   classified from its template counts. A logistic regression is compared with a log-level
   rule and with PCA, on the full HDFS_v1 log and on a second system (BGL).
@@ -435,6 +438,8 @@ paper/                 write-up of the whole project (LaTeX source and PDF)
 evaluation_colab.ipynb runs the evaluation on a Colab T4
 pipeline_benchmark_colab.ipynb  runs the pipeline and the benchmark on a Colab T4
 v2_colab.ipynb         runs the whole v2 on Colab
+export_web_colab.ipynb exports the v2 model to 4-bit ONNX for the browser demo (docs/)
+docs/index.html        the demo page (GitHub Pages)
 ```
 
 ## Usage
