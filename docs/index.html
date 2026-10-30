@@ -246,7 +246,8 @@ cause: write never finished</span></div>
     <summary>how the prediction runs</summary>
     <p style="margin-top:.6em">If your browser has WebGPU (recent Chrome or Edge on a computer), you can tick
       "run the model live": the page downloads my fine-tuned Qwen2.5-1.5B (4-bit, about 1.9 GB, only the first
-      time) and runs it here, on your GPU. Nothing is sent to a server. Otherwise the page shows the answer the
+      time) and runs it here, on your GPU. Nothing is sent to a server. With a dedicated
+      graphics card an answer takes a few seconds; on a laptop's integrated GPU it can take one or two minutes. Otherwise the page shows the answer the
       same model gave for this block when I evaluated it (Colab T4, greedy decoding, so the output is the same each time).</p>
     <p>The real answer comes from the raw log: the Loghub label of the block, and the cause found by fixed
       rules on its events (for example, a write is never finished when <code>addStoredBlock</code> never
@@ -522,25 +523,30 @@ cause: write never finished</span></div>
         }
       };
       live.tok = await T.AutoTokenizer.from_pretrained(MODEL_ID);
-      live.model = await T.AutoModelForCausalLM.from_pretrained(MODEL_ID, { dtype: "q4", device: DEVICE, progress_callback: cb });
+      const cb2 = p => { cb(p); if (p.status === "done" && /onnx_data$/.test(p.file || "")) setStatus(`<span class="dim">preparing the model on your GPU (can take a minute the first time)…</span>`); };
+      live.model = await T.AutoModelForCausalLM.from_pretrained(MODEL_ID, { dtype: "q4", device: DEVICE, progress_callback: cb2 });
       live.T = T; bar.hidden = true;
     })();
     try { await live.loading; } catch (e) { live.loading = null; throw e; }
   }
   async function runLive(x) {
     await loadModel();
-    setStatus(`<span class="dim">the model is writing its answer${DEVICE === "webgpu" ? " on your GPU" : " on your CPU (slow)"}…</span>`);
+    const where = DEVICE === "webgpu" ? "on your GPU" : "on your CPU (slow)";
+    let ntok = 0; const t0 = performance.now();
+    const tick = () => { const s = (performance.now() - t0) / 1000;
+      setStatus(`<span class="dim">${ntok ? `writing ${where}: ${ntok} tokens, ${(ntok / s).toFixed(1)} tokens/s` : `reading the block ${where}`} · ${s.toFixed(0)} s</span>`); };
+    tick(); const timer = setInterval(tick, 500);
     const msgs = [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: x.prompt }];
     const inputs = live.tok.apply_chat_template(msgs, { add_generation_prompt: true, return_dict: true });
     let text = "";
     $("pred").innerHTML = `<div class="t">my model says <span class="tag">running live</span></div><div class="stream" id="stream"></div>`;
     const streamer = new live.T.TextStreamer(live.tok, {
       skip_prompt: true, skip_special_tokens: true,
-      callback_function: s => { text += s; const el = $("stream"); if (el) { el.textContent = text; el.scrollTop = el.scrollHeight; } },
+      callback_function: s => { text += s; ntok++; const el = $("stream"); if (el) { el.textContent = text; el.scrollTop = el.scrollHeight; } },
     });
-    const t0 = performance.now();
-    await live.model.generate({ ...inputs, max_new_tokens: 300, do_sample: false, streamer });
-    setStatus(`<span class="dim">done in ${((performance.now() - t0) / 1000).toFixed(1)} s</span>`);
+    try { await live.model.generate({ ...inputs, max_new_tokens: 300, do_sample: false, streamer }); }
+    finally { clearInterval(timer); }
+    setStatus(`<span class="dim">done in ${((performance.now() - t0) / 1000).toFixed(1)} s ${where}</span>`);
     return parseAnswer(text);
   }
   $("predict").addEventListener("click", async () => {
