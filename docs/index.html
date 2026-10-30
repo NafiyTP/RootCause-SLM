@@ -233,7 +233,7 @@ cause: write never finished</span></div>
     <span class="status" id="mstatus"></span>
   </div>
   <p id="liverow" hidden style="margin:.7em 0 0"><label><input type="checkbox" id="livebox"> run the model live in my browser
-    <span class="dim">(on your GPU, about 1.7 GB to download the first time)</span></label></p>
+    <span class="dim">(on your GPU, about 1.9 GB to download the first time)</span></label></p>
   <div class="prog" id="prog" hidden><i></i></div>
 
   <div class="vs2">
@@ -245,7 +245,7 @@ cause: write never finished</span></div>
   <details>
     <summary>how the prediction runs</summary>
     <p style="margin-top:.6em">If your browser has WebGPU (recent Chrome or Edge on a computer), you can tick
-      "run the model live": the page downloads my fine-tuned Qwen2.5-1.5B (4-bit, about 1.7 GB, only the first
+      "run the model live": the page downloads my fine-tuned Qwen2.5-1.5B (4-bit, about 1.9 GB, only the first
       time) and runs it here, on your GPU. Nothing is sent to a server. Otherwise the page shows the answer the
       same model gave for this block when I evaluated it (Colab T4, greedy decoding, so the output is the same each time).</p>
     <p>The real answer comes from the raw log: the Loghub label of the block, and the cause found by fixed
@@ -337,7 +337,7 @@ cause: write never finished</span></div>
   // Hugging Face repo with the ONNX export of modele_hdfs_v2 (made by export_web_colab.ipynb).
   // Can be overridden with ?model=user/repo in the URL.
   const Q = new URLSearchParams(location.search);
-  const MODEL_ID = Q.get("model") || "NafiyTP/rootcause-slm-v2-web";
+  const MODEL_ID = Q.get("model") || "yifanbg/rootcause-slm-v2-web";
   const DEVICE = Q.get("device") === "wasm" ? "wasm" : "webgpu";   // ?device=wasm runs on the CPU (much slower)
   const TJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
 
