@@ -10,9 +10,10 @@ would be useful. The project ended up with two parts:
 
 Demo: https://nafiytp.github.io/RootCause-SLM/
 
-It runs in the browser. You can paste HDFS lines, add or remove events in a block and see the
-score change, move the detection threshold, and read the saved answers of the models on the
-123 v2 test blocks.
+It runs in the browser. You can pick a test block, ask my model what is wrong and see the real
+answer next to it. With WebGPU (recent Chrome or Edge) the model can run live in the page, on your
+GPU; otherwise the page shows the answer it gave when I evaluated it. You can also paste HDFS lines,
+add or remove events in a block and watch the detector score change, or move the threshold.
 
 ## Short version
 

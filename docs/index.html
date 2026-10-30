@@ -4,141 +4,327 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RootCause-SLM</title>
-<meta name="description" content="Anomaly detection on HDFS logs, running in the browser: paste logs, edit a block, move the threshold, browse the explanations.">
+<meta name="description" content="Find the broken blocks in HDFS logs, then ask a small fine-tuned model (Qwen2.5-1.5B) what went wrong. Runs in the browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
+  color-scheme: light;
+  --bg: #f6f5f1; --panel: #ffffff; --field: #efeee9; --fg: #1d1e1f; --dim: #6b6d68; --rule: #dddbd3;
+  --head: #9a5b00; --link: #1f5fbf; --bad: #c2391f; --ok: #2c7a2c; --mid: #8a6d00;
+  --bar: #c9c6bb; --barhi: #9a5b00;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #111213; --panel: #17181a; --field: #1c1d20; --fg: #d8d8d3; --dim: #8d8f8a; --rule: #2c2e30;
+    --head: #e8c27a; --link: #8fb8e8; --bad: #f0816f; --ok: #8fcf8f; --mid: #d9c06a;
+    --bar: #3a3c3f; --barhi: #e8c27a;
+  }
+}
+:root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #111213; --fg: #d6d6d2; --dim: #8d8f8a; --rule: #2c2e2f;
-  --link: #8fb8e8; --head: #e8c27a; --bad: #f0816f; --ok: #8fcf8f; --field: #191a1c;
-  --mono: ui-monospace, "SFMono-Regular", "DejaVu Sans Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --bg: #111213; --panel: #17181a; --field: #1c1d20; --fg: #d8d8d3; --dim: #8d8f8a; --rule: #2c2e30;
+  --head: #e8c27a; --link: #8fb8e8; --bad: #f0816f; --ok: #8fcf8f; --mid: #d9c06a;
+  --bar: #3a3c3f; --barhi: #e8c27a;
 }
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.65 var(--mono); }
-.page { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
-h1, h2 { font-size: 1em; font-weight: 700; margin: 2.4em 0 .6em; color: var(--head); }
-h1 { font-size: 1.25em; margin-top: 0; }
-h2::before { content: "## "; color: var(--dim); }
-p { margin: 0 0 .9em; max-width: 78ch; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14.5px/1.65 var(--mono); }
+.page { max-width: 960px; margin: 0 auto; padding: 36px 16px 72px; }
+h1 { font-size: 1.5em; margin: 0 0 .3em; color: var(--head); }
+h2 { font-size: 1.1em; margin: 3em 0 .5em; color: var(--head); }
+h2::before { content: "## "; color: var(--dim); font-weight: 400; }
+h3 { font-size: 1em; margin: 1.8em 0 .5em; }
+h3::before { content: "### "; color: var(--dim); font-weight: 400; }
+p { margin: 0 0 .9em; max-width: 80ch; }
 a, .lnk { color: var(--link); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; background: none; border: 0; font: inherit; padding: 0; }
 a:hover, .lnk:hover { color: var(--fg); }
-.lnk[aria-pressed="true"] { color: var(--head); text-decoration: none; }
 :focus-visible { outline: 1px dashed var(--head); outline-offset: 2px; }
-.dim { color: var(--dim); } .bad { color: var(--bad); } .ok { color: var(--ok); } .head { color: var(--head); }
-hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
-textarea { width: 100%; min-height: 220px; resize: vertical; background: var(--field); color: var(--fg); border: 1px solid var(--rule); padding: 10px; font: 12.5px/1.5 var(--mono); white-space: pre; overflow: auto; }
-button.run, button.sm { font: inherit; background: var(--fg); color: var(--bg); border: 0; padding: 3px 12px; cursor: pointer; }
-button.run:hover, button.sm:hover { background: var(--head); }
-button.st { font: 13px var(--mono); background: var(--field); color: var(--fg); border: 1px solid var(--rule); width: 22px; height: 20px; line-height: 1; padding: 0; cursor: pointer; }
-button.st:hover { border-color: var(--head); color: var(--head); }
-select { font: 13px var(--mono); background: var(--field); color: var(--fg); border: 1px solid var(--rule); padding: 2px 4px; max-width: 100%; }
-.examples { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: .4em 0 .8em; }
-.blk { padding: .9em 0; border-top: 1px solid var(--rule); }
-.row { white-space: pre-wrap; overflow-wrap: anywhere; }
-.ind { padding-left: 2ch; } .ind2 { padding-left: 4ch; }
-.code { display: block; background: var(--field); padding: 6px 10px; margin: .3em 0 .5em; overflow-x: auto; white-space: pre; font-size: 12.5px; }
-details { margin: .4em 0 0; }
-summary { cursor: pointer; color: var(--link); }
+.dim { color: var(--dim); } .bad { color: var(--bad); } .ok { color: var(--ok); } .head { color: var(--head); } .mid { color: var(--mid); }
+.lead { font-size: 1.05em; max-width: 72ch; }
+nav { margin: 1.2em 0 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+hr { border: 0; border-top: 1px solid var(--rule); margin: 2.4em 0; }
+small { font-size: .85em; }
+
+/* flow */
+.flow { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 10px; align-items: stretch; margin: 1.2em 0 .6em; }
+.step { background: var(--panel); border: 1px solid var(--rule); padding: 12px 14px; }
+.step b { color: var(--head); display: block; margin-bottom: .3em; }
+.step .ex { display: block; margin-top: .6em; font-size: 12px; color: var(--dim); background: var(--field); padding: 6px 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.arrow { align-self: center; color: var(--dim); }
+@media (max-width: 760px) { .flow { grid-template-columns: 1fr; } .arrow { transform: rotate(90deg); justify-self: center; } }
+
+/* tiles */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 1em 0 1.4em; }
+.tile { background: var(--panel); border: 1px solid var(--rule); padding: 12px 14px; }
+.tile .big { font-size: 1.9em; font-weight: 700; color: var(--head); line-height: 1.15; }
+.tile .what { margin-top: .35em; }
+.tile .vs { margin-top: .4em; font-size: 12.5px; color: var(--dim); }
+@media (max-width: 820px) { .tiles { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 460px) { .tiles { grid-template-columns: 1fr; } }
+
+/* bars */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+@media (max-width: 760px) { .charts { grid-template-columns: 1fr; } }
+.chart h4 { margin: 0 0 .2em; font-size: 1em; }
+.chart .sub { color: var(--dim); font-size: 12.5px; margin-bottom: .6em; }
+.brow { display: grid; grid-template-columns: 16ch 1fr 6ch; gap: 8px; align-items: center; margin: 5px 0; font-size: 13px; }
+.brow .lab { text-align: right; color: var(--dim); }
+.brow .trk { height: 14px; background: var(--field); }
+.brow .trk i { display: block; height: 100%; background: var(--bar); }
+.brow.hi .trk i { background: var(--barhi); }
+.brow.hi .lab, .brow.hi .val { color: var(--fg); font-weight: 600; }
+.brow .val { font-variant-numeric: tabular-nums; }
+
+/* tables */
 .tbl { overflow-x: auto; margin: .6em 0 1em; }
 table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
-th, td { padding: 3px 12px 3px 0; text-align: left; vertical-align: top; }
+th, td { padding: 4px 14px 4px 0; text-align: left; vertical-align: top; }
 th { color: var(--dim); font-weight: 400; border-bottom: 1px solid var(--rule); }
 td.n, th.n { text-align: right; white-space: nowrap; }
 tr.hi td { color: var(--head); }
 tr.off td { opacity: .45; }
-.tpl { font-size: 12.5px; overflow-wrap: anywhere; }
-.score { font-size: 1.1em; }
+.up { color: var(--ok); } .down { color: var(--bad); }
+
+ul.plain { margin: 0 0 1em; padding-left: 2ch; max-width: 80ch; }
+ul.plain li { margin: .25em 0; }
+
+/* try */
+.kinds { display: flex; flex-wrap: wrap; gap: 6px; margin: .6em 0 1em; }
+.chip { font: 13px var(--mono); background: var(--panel); color: var(--fg); border: 1px solid var(--rule); padding: 3px 10px; cursor: pointer; }
+.chip:hover { border-color: var(--head); }
+.chip[aria-pressed="true"] { border-color: var(--head); color: var(--head); }
+.chip .k { color: var(--dim); }
+.card { background: var(--panel); border: 1px solid var(--rule); padding: 14px 16px; }
+.card + .card { margin-top: 10px; }
+.blockhead { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.raw { display: block; background: var(--field); padding: 8px 10px; margin: .5em 0 0; overflow-x: auto; white-space: pre; font-size: 12px; line-height: 1.5; max-height: 260px; overflow-y: auto; }
+details { margin: .6em 0 0; }
+summary { cursor: pointer; color: var(--link); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 1em 0 0; }
+button.run { font: 600 14px var(--mono); background: var(--fg); color: var(--bg); border: 0; padding: 7px 16px; cursor: pointer; }
+button.run:hover { background: var(--head); }
+button.run:disabled { opacity: .5; cursor: default; }
+button.ghost { font: 13px var(--mono); background: none; color: var(--fg); border: 1px solid var(--rule); padding: 6px 12px; cursor: pointer; }
+button.ghost:hover { border-color: var(--head); }
+.vs2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+@media (max-width: 700px) { .vs2 { grid-template-columns: 1fr; } }
+.side { background: var(--panel); border: 1px solid var(--rule); padding: 14px 16px; min-height: 150px; }
+.side .t { color: var(--dim); font-size: 12.5px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .5em; }
+.side .cause { font-weight: 600; font-size: 1.05em; margin: .2em 0 .4em; }
+.side .ev { font-size: 12px; color: var(--dim); margin: .15em 0 0 2ch; overflow-wrap: anywhere; }
+.verdict { margin-top: 10px; padding: 10px 14px; border: 1px solid var(--rule); background: var(--panel); }
+.verdict b.ok, .verdict b.bad, .verdict b.mid { font-size: 1.05em; }
+.tag { display: inline-block; font-size: 11.5px; border: 1px solid var(--rule); padding: 0 6px; color: var(--dim); margin-left: 6px; }
+.stream { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; color: var(--dim); background: var(--field); padding: 6px 8px; margin-top: .5em; max-height: 180px; overflow-y: auto; }
+.prog { height: 6px; background: var(--field); margin: .5em 0; max-width: 420px; }
+.prog i { display: block; height: 100%; width: 0; background: var(--head); transition: width .2s; }
+.tally { color: var(--dim); font-size: 13px; }
+.status { font-size: 13px; }
+
+/* explore (playground, threshold, all answers) */
+textarea { width: 100%; min-height: 200px; resize: vertical; background: var(--field); color: var(--fg); border: 1px solid var(--rule); padding: 10px; font: 12px/1.5 var(--mono); white-space: pre; overflow: auto; }
+button.st { font: 13px var(--mono); background: var(--field); color: var(--fg); border: 1px solid var(--rule); width: 22px; height: 20px; line-height: 1; padding: 0; cursor: pointer; }
+button.st:hover { border-color: var(--head); color: var(--head); }
+select { font: 13px var(--mono); background: var(--field); color: var(--fg); border: 1px solid var(--rule); padding: 2px 4px; max-width: 100%; }
+.examples { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: .4em 0 .8em; }
+.lnk[aria-pressed="true"] { color: var(--head); text-decoration: none; }
+.blk { padding: .9em 0; border-top: 1px solid var(--rule); }
+.row { white-space: pre-wrap; overflow-wrap: anywhere; }
+.ind { padding-left: 2ch; } .ind2 { padding-left: 4ch; }
+.code { display: block; background: var(--field); padding: 6px 10px; margin: .3em 0 .5em; overflow-x: auto; white-space: pre; font-size: 12px; }
+.tpl { font-size: 12px; overflow-wrap: anywhere; }
 .bar { height: 6px; background: var(--rule); margin: .3em 0 .2em; max-width: 420px; }
 .bar > i { display: block; height: 100%; }
 input[type=range] { width: 100%; max-width: 520px; accent-color: var(--head); }
 .kv { display: grid; grid-template-columns: max-content max-content; gap: 0 18px; font-variant-numeric: tabular-nums; }
 .filters { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin: .5em 0; }
-.ex { border-top: 1px solid var(--rule); }
-.ex > summary { list-style: none; padding: .45em 0; color: var(--fg); }
-.ex > summary::-webkit-details-marker { display: none; }
-.ex > summary:hover { color: var(--head); }
-.ex[open] > summary { color: var(--head); }
+.ex2 { border-top: 1px solid var(--rule); }
+.ex2 > summary { list-style: none; padding: .45em 0; color: var(--fg); }
+.ex2 > summary::-webkit-details-marker { display: none; }
+.ex2 > summary:hover, .ex2[open] > summary { color: var(--head); }
 .ans { margin: .5em 0 .7em; }
+.explore > details { border-top: 1px solid var(--rule); padding: .6em 0; }
+.explore > details > summary { font-weight: 600; color: var(--fg); }
+.explore > details > summary:hover { color: var(--head); }
 footer { color: var(--dim); font-size: 13px; }
-@media (max-width: 560px) { body { font-size: 14px; } .hide-sm { display: none; } }
+@media (max-width: 560px) { body { font-size: 13.5px; } .hide-sm { display: none; } .brow { grid-template-columns: 13ch 1fr 5ch; } th, td { padding-right: 9px; } }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>RootCause-SLM</h1>
-  <p>Anomaly detection on HDFS logs. A logistic regression on template counts finds the anomalous
-    blocks (F1 0.973 on the full HDFS_v1 log, 11.2M lines). Then a fine-tuned Qwen2.5-1.5B tries to
-    say why. Everything on this page runs in your browser: the detector is 55 weights.</p>
-  <p><a href="#play">playground</a> · <a href="#threshold">threshold</a> · <a href="#explain">explanations</a> ·
-    <a href="#results">results</a> · <a href="#notes">notes</a> ·
-    <a href="https://github.com/NafiyTP/RootCause-SLM">code</a></p>
+  <p class="lead">Servers write millions of log lines. I wanted to see if a small model could do two
+    things with them: find the broken parts, and say what went wrong, without sending the logs to an
+    external API.</p>
+  <nav><a href="#idea">the idea</a><a href="#results">results</a><a href="#try">try the model</a><a href="#explore">explore more</a><a href="https://github.com/NafiyTP/RootCause-SLM">code</a></nav>
 
-  <h2 id="play">playground</h2>
-  <p class="dim">Paste raw HDFS lines, or load a real block from HDFS_v1. Then add or remove events
-    with the − / + buttons and watch the score move.</p>
-  <div class="examples" id="examples"></div>
-  <label for="log" class="dim">input <span id="count"></span></label>
-  <textarea id="log" spellcheck="false" aria-label="raw HDFS log lines"></textarea>
-  <p style="margin-top:10px"><button class="run" id="run" type="button">run</button></p>
-  <div id="out" aria-live="polite"></div>
-
-  <h2 id="threshold">threshold</h2>
-  <p>The same detector on all 115,013 test blocks (the last 20% of the log, 1,679 anomalies). A block
-    is flagged when its score is above the threshold.</p>
-  <label for="thr" class="dim">threshold <span class="head" id="thrv"></span></label><br>
-  <input type="range" id="thr" min="0" max="1000" step="1" value="500">
-  <div class="kv" id="throut" style="margin-top:.6em"></div>
-  <p id="thrnote" class="dim" style="margin-top:.8em"></p>
-
-  <h2 id="explain">explanations</h2>
-  <p>123 test blocks (83 anomalous, 40 normal). Each system gets a summary of the block and must say
-    whether something is wrong and what. The reference cause comes from fixed rules on the raw log.</p>
-  <p class="dim">rules = the pipeline's sentence · teacher = GPT-OSS 120B · v2 = Qwen2.5-1.5B + LoRA,
-    trained on the teacher's answers. On normal blocks, "invented" means the system claimed a problem.</p>
-  <div class="filters">
-    <label>label <select id="fl"><option value="">all</option><option>Anomaly</option><option>Normal</option></select></label>
-    <label>cause <select id="fc"><option value="">all</option></select></label>
-    <label>v2 <select id="fv"><option value="">all</option><option>correct</option><option>wrong</option><option>missed</option><option>ok</option><option>invented</option></select></label>
+  <h2 id="idea">the idea</h2>
+  <p>The data is HDFS_v1 from <a href="https://github.com/logpai/loghub">Loghub</a>: 11.2M log lines
+    from a Hadoop cluster, where each file is cut into blocks. Every line about a block contains its id
+    (<code>blk_...</code>), so all the lines of one block tell the story of that block. Loghub says for
+    each block if it is normal or anomalous.</p>
+  <div class="flow" aria-label="pipeline in three steps">
+    <div class="step"><b>1. group</b>Put together the lines that mention the same block.
+      <span class="ex">allocateBlock blk_42
+Receiving block blk_42
+... (13 lines)</span></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="step"><b>2. detect</b>Count each type of event in the block. A logistic regression on these counts gives a score.
+      <span class="ex">score 0.99 → FLAGGED
+missing: addStoredBlock</span></div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="step"><b>3. explain</b>Give a summary of the block to Qwen2.5-1.5B, fine-tuned with LoRA. It answers in JSON.
+      <span class="ex">anomalous: true
+cause: write never finished</span></div>
   </div>
-  <p id="exsum" class="dim"></p>
-  <div id="exlist"></div>
+  <p class="dim">For step 3 I used a big model (GPT-OSS 120B) to write explanations for 409 training
+    blocks, and trained the small one to copy it. The small one is 80 times smaller and can run on your
+    own machine, even in this page.</p>
 
   <h2 id="results">results</h2>
-  <p>Detection, full HDFS_v1 (575,061 blocks). Chronological split: train on the first 80%, test on
-    the last 20%.</p>
-  <div class="tbl"><table>
-    <tr><th>detector</th><th class="n">precision</th><th class="n">recall</th><th class="n">F1</th></tr>
-    <tr><td>WARN/ERROR rule</td><td class="n">1.000</td><td class="n">0.248</td><td class="n">0.398</td></tr>
-    <tr><td>PCA (unsupervised)</td><td class="n">0.379</td><td class="n">0.051</td><td class="n">0.090</td></tr>
-    <tr class="hi"><td>logistic regression</td><td class="n">0.955</td><td class="n">0.992</td><td class="n">0.973</td></tr>
-  </table></div>
-  <p>Same detectors on BGL (4.7M lines, 60-minute windows). 57% of test windows contain a template
-    never seen in training, and the simple rule wins.</p>
-  <div class="tbl"><table>
-    <tr><th>detector</th><th class="n">precision</th><th class="n">recall</th><th class="n">F1</th></tr>
-    <tr class="hi"><td>level rule</td><td class="n">0.734</td><td class="n">1.000</td><td class="n">0.846</td></tr>
-    <tr><td>PCA (unsupervised)</td><td class="n">0.203</td><td class="n">0.541</td><td class="n">0.295</td></tr>
-    <tr><td>logistic regression</td><td class="n">0.972</td><td class="n">0.518</td><td class="n">0.676</td></tr>
-  </table></div>
-  <p>Explanations, 83 anomalous test blocks, against the rule reference.</p>
-  <div class="tbl"><table>
-    <tr><th>system</th><th class="n">correct</th><th class="n">wrong / vague</th><th class="n">missed</th><th class="n">invents on re-replication</th></tr>
-    <tr><td>teacher, GPT-OSS 120B</td><td class="n">67%</td><td class="n">13%</td><td class="n">19%</td><td class="n">0%</td></tr>
-    <tr><td>v1 (one line in)</td><td class="n">39%</td><td class="n">61%</td><td class="n">0%</td><td class="n">-</td></tr>
-    <tr><td>Qwen2.5-1.5B, no fine-tuning</td><td class="n">4%</td><td class="n">0%</td><td class="n">96%</td><td class="n">0%</td></tr>
-    <tr class="hi"><td>v2 (block summary in)</td><td class="n">63%</td><td class="n">24%</td><td class="n">13%</td><td class="n">0%</td></tr>
-  </table></div>
-  <p>Cost on a Tesla T4: the 1.5B model at batch 16 costs about 0.024 $ per 1,000 explanations,
-    against 0.168 $ for a 70B model through an API (v1 inputs).</p>
+  <div class="tiles">
+    <div class="tile"><div class="big">0.973</div><div class="what">F1 of the detector on the full log</div><div class="vs">a rule on WARN/ERROR lines: 0.398</div></div>
+    <div class="tile"><div class="big">15 / 15</div><div class="what">anomalies caught in 3,000 blocks in a row</div><div class="vs">0 false alarm, 0.4 s on a CPU</div></div>
+    <div class="tile"><div class="big">63%</div><div class="what">right cause found by my 1.5B model</div><div class="vs">its 120B teacher: 67%</div></div>
+    <div class="tile"><div class="big">~7×</div><div class="what">cheaper than a 70B model through an API</div><div class="vs">batch 16 on a T4 GPU</div></div>
+  </div>
 
-  <h2 id="notes">notes</h2>
-  <p>Detection is the solid part. All false alarms at the default threshold are re-replication blocks:
-    HDFS copying a block after losing a replica. The failure that caused it is logged on another
-    machine, so from the block alone some look exactly like normal blocks.</p>
-  <p>The rule reference is silver, not gold: it cannot reward a correct cause the rules do not
-    cover (for example naming the upstream IOException instead of "never stored"). A hand check of 30
-    anomalous blocks also showed a prompt flaw: the "normal block always has" list only shows events
-    seen in at least 99% of normal blocks, so deletion (92%) looks abnormal to the model.</p>
+  <div class="charts">
+    <div class="chart">
+      <h4>Detection</h4>
+      <div class="sub">F1 on the last 20% of the log (115,013 blocks)</div>
+      <div id="ch-det"></div>
+    </div>
+    <div class="chart">
+      <h4>Explanation</h4>
+      <div class="sub">anomalous test blocks where the right cause is named (83 blocks)</div>
+      <div id="ch-exp"></div>
+    </div>
+  </div>
+
+  <h3>The input was the problem</h3>
+  <p>v1 of the model only saw one line of the block. It copied its teacher well, but the real cause is
+    usually in other lines, so it was guessing. v2 sees a summary of the whole block. Same model size,
+    very different result:</p>
+  <div class="tbl"><table id="t-fail">
+    <tr><th>failure</th><th class="n">blocks</th><th class="n">v1 <span class="hide-sm">(one line)</span></th><th class="n">v2 <span class="hide-sm">(whole block)</span></th><th class="n">teacher<span class="hide-sm"> 120B</span></th></tr>
+  </table></div>
+
+  <h3>What does not work</h3>
+  <ul class="plain">
+    <li>The model copies the mistakes of its teacher: both call normal block deletions a problem, and both miss empty packets (an INFO line with no error in it).</li>
+    <li>The detector needs complete blocks. On a log cut in the middle, F1 falls to 0.27.</li>
+    <li>On another system (BGL, a supercomputer) the detector gets F1 0.676 and a simple rule does better (0.846), because 57% of the test windows have a message type never seen in training.</li>
+  </ul>
+
+  <h2 id="try">try the model</h2>
+  <p>Pick a test block. These blocks were never seen in training, and they come after the training
+    period in time. Ask the model what is wrong, then compare with the real answer.</p>
+  <div class="kinds" id="kinds" role="group" aria-label="kind of block"></div>
+
+  <div class="card" id="blockcard"></div>
+  <div class="actions">
+    <button class="run" id="predict" type="button">predict</button>
+    <button class="ghost" id="next" type="button">another block</button>
+    <span class="status" id="mstatus"></span>
+  </div>
+  <p id="liverow" hidden style="margin:.7em 0 0"><label><input type="checkbox" id="livebox"> run the model live in my browser
+    <span class="dim">(on your GPU, about 1.7 GB to download the first time)</span></label></p>
+  <div class="prog" id="prog" hidden><i></i></div>
+
+  <div class="vs2">
+    <div class="side" id="pred"><div class="t">my model says</div><p class="dim">Click predict.</p></div>
+    <div class="side" id="truth"><div class="t">real answer</div><p class="dim">Hidden until you predict.</p></div>
+  </div>
+  <div class="verdict" id="verdict" hidden></div>
+  <p class="tally" id="tally" style="margin-top:.8em"></p>
+  <details>
+    <summary>how the prediction runs</summary>
+    <p style="margin-top:.6em">If your browser has WebGPU (recent Chrome or Edge on a computer), you can tick
+      "run the model live": the page downloads my fine-tuned Qwen2.5-1.5B (4-bit, about 1.7 GB, only the first
+      time) and runs it here, on your GPU. Nothing is sent to a server. Otherwise the page shows the answer the
+      same model gave for this block when I evaluated it (Colab T4, greedy decoding, so the output is the same each time).</p>
+    <p>The real answer comes from the raw log: the Loghub label of the block, and the cause found by fixed
+      rules on its events (for example, a write is never finished when <code>addStoredBlock</code> never
+      appears).</p>
+    <p id="livenote" class="dim"></p>
+  </details>
+
+  <h2 id="explore">explore more</h2>
+  <div class="explore">
+    <details>
+      <summary>Detector playground: paste logs, edit a block, watch the score</summary>
+      <p style="margin-top:.6em" class="dim">Paste raw HDFS lines or load a real block. Each block gets a
+        score between 0 and 1, and is flagged above 0.5. Open "edit the block" to add or remove events with
+        − / + and see how the score moves.</p>
+      <div class="examples" id="examples"></div>
+      <label for="log" class="dim">input <span id="count"></span></label>
+      <textarea id="log" spellcheck="false" aria-label="raw HDFS log lines"></textarea>
+      <p style="margin-top:10px"><button class="run" id="run" type="button">run</button></p>
+      <div id="out" aria-live="polite"></div>
+    </details>
+    <details>
+      <summary>Threshold: the trade-off between missed anomalies and false alarms</summary>
+      <p style="margin-top:.6em">The detector on all 115,013 test blocks (1,679 anomalies). A block is
+        flagged when its score is above the threshold.</p>
+      <label for="thr" class="dim">threshold <span class="head" id="thrv"></span></label><br>
+      <input type="range" id="thr" min="0" max="1000" step="1" value="500">
+      <div class="kv" id="throut" style="margin-top:.6em"></div>
+      <p id="thrnote" class="dim" style="margin-top:.8em"></p>
+    </details>
+    <details>
+      <summary>All 123 test blocks: rules, teacher and my model side by side</summary>
+      <p style="margin-top:.6em" class="dim">rules = sentence built from the missing and rare events ·
+        teacher = GPT-OSS 120B · v2 = my Qwen2.5-1.5B + LoRA. On normal blocks, "invented" means the system
+        claimed a problem.</p>
+      <div class="filters">
+        <label>label <select id="fl"><option value="">all</option><option>Anomaly</option><option>Normal</option></select></label>
+        <label>cause <select id="fc"><option value="">all</option></select></label>
+        <label>v2 <select id="fv"><option value="">all</option><option>correct</option><option>wrong</option><option>missed</option><option>ok</option><option>invented</option></select></label>
+      </div>
+      <p id="exsum" class="dim"></p>
+      <div id="exlist"></div>
+    </details>
+    <details>
+      <summary>All the numbers</summary>
+      <p style="margin-top:.6em">Detection on HDFS_v1 (575,061 blocks, chronological split: train on the first 80%, test on the last 20%):</p>
+      <div class="tbl"><table>
+        <tr><th>detector</th><th class="n">precision</th><th class="n">recall</th><th class="n">F1</th></tr>
+        <tr><td>WARN/ERROR rule</td><td class="n">1.000</td><td class="n">0.248</td><td class="n">0.398</td></tr>
+        <tr><td>PCA (unsupervised)</td><td class="n">0.379</td><td class="n">0.051</td><td class="n">0.090</td></tr>
+        <tr class="hi"><td>logistic regression</td><td class="n">0.955</td><td class="n">0.992</td><td class="n">0.973</td></tr>
+      </table></div>
+      <p>Same detectors on BGL (4.7M lines, 60-minute windows):</p>
+      <div class="tbl"><table>
+        <tr><th>detector</th><th class="n">precision</th><th class="n">recall</th><th class="n">F1</th></tr>
+        <tr class="hi"><td>level rule</td><td class="n">0.734</td><td class="n">1.000</td><td class="n">0.846</td></tr>
+        <tr><td>PCA (unsupervised)</td><td class="n">0.203</td><td class="n">0.541</td><td class="n">0.295</td></tr>
+        <tr><td>logistic regression</td><td class="n">0.972</td><td class="n">0.518</td><td class="n">0.676</td></tr>
+      </table></div>
+      <p>Explanations on the 123 v2 test blocks (83 anomalous, 40 normal), scored against the raw log:</p>
+      <div class="tbl"><table>
+        <tr><th>system</th><th class="n">valid JSON</th><th class="n">correct</th><th class="n">wrong / vague</th><th class="n">missed</th><th class="n">invents on normal</th></tr>
+        <tr><td>teacher, GPT-OSS 120B</td><td class="n">100%</td><td class="n">67%</td><td class="n">13%</td><td class="n">19%</td><td class="n">40%</td></tr>
+        <tr><td>v1 (one line in)</td><td class="n">99%</td><td class="n">39%</td><td class="n">61%</td><td class="n">0%</td><td class="n">-</td></tr>
+        <tr><td>Qwen2.5-1.5B, no fine-tuning</td><td class="n">27%</td><td class="n">4%</td><td class="n">0%</td><td class="n">96%</td><td class="n">0%</td></tr>
+        <tr class="hi"><td>v2 (block summary in)</td><td class="n">100%</td><td class="n">63%</td><td class="n">24%</td><td class="n">13%</td><td class="n">40%</td></tr>
+      </table></div>
+      <p class="dim">"Invents on normal" is on the 20 random normal blocks. On the 20 normal re-replication blocks, the teacher and v2 invent nothing.</p>
+      <p>Cost on a T4 (v1 inputs, about 160 tokens in, 90 out):</p>
+      <div class="tbl"><table>
+        <tr><th>setup</th><th class="n">s / explanation</th><th class="n">USD per 1k</th></tr>
+        <tr><td>Qwen2.5-1.5B + LoRA, batch 1</td><td class="n">2.918</td><td class="n">0.284</td></tr>
+        <tr class="hi"><td>Qwen2.5-1.5B + LoRA, batch 16</td><td class="n">0.251</td><td class="n">0.024</td></tr>
+        <tr><td>Llama 3.3-70B on Groq (estimate)</td><td class="n"></td><td class="n">0.168</td></tr>
+      </table></div>
+      <p class="dim">The paper and every prediction are in the <a href="https://github.com/NafiyTP/RootCause-SLM">repo</a>.</p>
+    </details>
+  </div>
+
   <hr>
   <footer>Yifan Wang · data: Loghub HDFS_v1, BGL ·
     <a href="https://github.com/NafiyTP/RootCause-SLM">github.com/NafiyTP/RootCause-SLM</a></footer>
@@ -148,6 +334,13 @@ footer { color: var(--dim); font-size: 13px; }
 <script>
 (function () {
   "use strict";
+  // Hugging Face repo with the ONNX export of modele_hdfs_v2 (made by export_web_colab.ipynb).
+  // Can be overridden with ?model=user/repo in the URL.
+  const Q = new URLSearchParams(location.search);
+  const MODEL_ID = Q.get("model") || "NafiyTP/rootcause-slm-v2-web";
+  const DEVICE = Q.get("device") === "wasm" ? "wasm" : "webgpu";   // ?device=wasm runs on the CPU (much slower)
+  const TJS = "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1";
+
   const D = JSON.parse(document.getElementById("data").textContent);
   const INDEX = new Map(D.templates.map((t, i) => [t, i]));
   const UNK = D.templates.length;
@@ -155,13 +348,235 @@ footer { color: var(--dim); font-size: 13px; }
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const short = t => t.replace(/^INFO dfs\./, "").replace(/^WARN dfs\./, "WARN ");
-  const pct = x => (100 * x).toFixed(1) + "%";
+  const EXPL = new Map(D.explorer.map(x => [x.id, x]));
+
+  const NAMES = {
+    never_stored: "write never finished", failed_delete: "failed delete", no_file: "block of no file",
+    redundant: "redundant addStoredBlock", empty_packet: "empty packet", replication_timeout: "replication timeout",
+    re_replication: "re-replication", none: "normal",
+  };
+  const catName = c => NAMES[c] || c;
+
+  // ------------------------------------------------------------ result charts
+  function bars(el, rows, max, fmt) {
+    $(el).innerHTML = rows.map(([lab, v, hi]) =>
+      `<div class="brow${hi ? " hi" : ""}"><span class="lab">${esc(lab)}</span><span class="trk"><i style="width:${(100 * v / max).toFixed(1)}%"></i></span><span class="val">${fmt(v)}</span></div>`).join("");
+  }
+  bars("ch-det", [["level rule", 0.398], ["PCA", 0.090], ["logistic reg.", 0.973, true]], 1, v => v.toFixed(3));
+  bars("ch-exp", [["base 1.5B", 4], ["v1 (1 line)", 39], ["v2 (mine)", 63, true], ["teacher 120B", 67]], 100, v => v + "%");
+  const FAIL = [["write never finished", 15, 0, 100, 100], ["failed delete", 15, 13, 100, 100],
+    ["redundant addStoredBlock", 15, 27, 100, 100], ["block of no file", 5, 20, 60, 100],
+    ["replication timeout", 3, 100, 100, 100], ["empty packet", 15, 47, 7, 0], ["re-replication", 15, 100, 0, 20]];
+  $("t-fail").innerHTML += FAIL.map(([n, k, a, b, t]) =>
+    `<tr><td>${n}</td><td class="n">${k}</td><td class="n">${a}%</td><td class="n ${b > a ? "up" : b < a ? "down" : ""}">${b}%</td><td class="n dim">${t}%</td></tr>`).join("");
+
+  // ------------------------------------------------------------ scoring (same as src/blocks_v2.py)
+  const CATEGORY_WORDS = {
+    never_stored: /never (been )?stored|not (been )?stored|never complet|not complet|incomplete|did not finish|never finish|unfinished|interrupted|missing addstoredblock|no addstoredblock|never (been )?(recorded|registered|confirmed)|write (failed|did not)|missing (the )?(typical |usual |expected |normal )?(block )?(lifecycle|completion|write)|writeblock|could not read from stream|jamais (été )?(stock|enregistr|termin)|incomplet|inachev|interromp/,
+    failed_delete: /delet\w* (error|fail)|fail\w* to delete|error (while |when )?(trying to )?delet|could not delete|unable to delete|blockinfo not found|volumemap|suppression (échou|impossible)/,
+    no_file: /belong(s|ing)? to (no|any) file|does not belong|orphan|aucun fichier|n'appartient/,
+    redundant: /redundant|twice|duplicate|redondant|deux fois|doublon/,
+    empty_packet: /empty packet|paquet vide/,
+    replication_timeout: /timed out|timeout|time-out|expir/,
+    re_replication: /re-?replicat|copied to another|transfer(red)? to another|r[ée]plicat|répliqu/,
+  };
+  const EVIDENCE_EVENTS = {
+    never_stored: /missing:.*(addstoredblock|packetresponder|received block .* of size)/,
+    failed_delete: /unexpected error trying to delete|blockinfo not found/,
+    no_file: /does not belong to any file/,
+    redundant: /redundant addstoredblock/,
+    empty_packet: /empty packet/,
+    replication_timeout: /timed out block/,
+  };
+  function parseAnswer(text) {
+    if (!text) return null;
+    const t = text.trim().replace(/^```(?:json)?|```$/g, "").trim();
+    const m = t.match(/\{[\s\S]*\}/); if (!m) return null;
+    let d; try { d = JSON.parse(m[0]); } catch (e) { return null; }
+    if (!d || typeof d !== "object" || !("anomalous" in d)) return null;
+    let a = d.anomalous; if (typeof a === "string") a = ["true", "yes", "1"].includes(a.trim().toLowerCase());
+    let ev = d.evidence || []; if (typeof ev === "string") ev = [ev];
+    return { anomalous: !!a, cause: String(d.cause || ""), evidence: ev.map(String), explanation: String(d.explanation || "") };
+  }
+  function predictedCats(a) {
+    if (!a || !a.anomalous) return new Set();
+    const text = `${a.cause} ${a.explanation}`.toLowerCase(), cats = new Set();
+    for (const [c, re] of Object.entries(CATEGORY_WORDS)) if (re.test(text)) cats.add(c);
+    for (const e of a.evidence) for (const [c, re] of Object.entries(EVIDENCE_EVENTS)) if (re.test(e.toLowerCase())) cats.add(c);
+    return cats;
+  }
+  function verdictOf(x, a) {
+    if (x.label === "Anomaly") {
+      if (!a) return "missed";
+      if (!a.anomalous) return "missed";
+      return predictedCats(a).has(x.cat) ? "correct" : "wrong";
+    }
+    return a && a.anomalous ? "invented" : "ok";
+  }
+  const VERDICT = {
+    correct: ["ok", "right cause", "The model found the real problem."],
+    ok: ["ok", "right: nothing wrong", "The block is normal and the model did not invent a problem."],
+    wrong: ["bad", "wrong cause", "The model saw a problem, but not the real one (or too vague to count)."],
+    missed: ["bad", "missed", "The block is anomalous but the model said everything is fine."],
+    invented: ["mid", "false alarm", "The block is normal but the model claimed a problem."],
+  };
+
+  // ------------------------------------------------------------ try the model
+  const KINDS = [
+    ["never_stored", "Anomaly"], ["failed_delete", "Anomaly"], ["redundant", "Anomaly"], ["no_file", "Anomaly"],
+    ["replication_timeout", "Anomaly"], ["empty_packet", "Anomaly"], ["re_replication", "Anomaly"], ["normal", "Normal"],
+  ];
+  const pools = {};
+  for (const [k, lab] of KINDS) pools[k] = D.explorer.filter(x => x.label === lab && (k === "normal" || x.cat === k));
+  const pos = {}; let kind = "random", cur = null, busy = false;
+  const tally = { n: 0, good: 0 };
+  const kinds = $("kinds");
+  function chip(k, label, n) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.dataset.k = k; b.setAttribute("aria-pressed", "false");
+    b.innerHTML = esc(label) + (n ? ` <span class="k">${n}</span>` : "");
+    b.addEventListener("click", () => { kind = k; pick(); });
+    kinds.appendChild(b);
+  }
+  chip("random", "random");
+  for (const [k] of KINDS) chip(k, k === "normal" ? "normal block" : catName(k), pools[k].length);
+
+  function pick() {
+    if (busy) return;
+    const pool = kind === "random" ? D.explorer : pools[kind];
+    if (kind === "random") cur = pool[Math.floor(Math.random() * pool.length)];
+    else { pos[kind] = ((pos[kind] ?? -1) + 1) % pool.length; cur = pool[pos[kind]]; }
+    [...kinds.children].forEach(c => c.setAttribute("aria-pressed", String(c.dataset.k === kind)));
+    showBlock();
+  }
+  function showBlock() {
+    const x = cur, raw = D.raw[x.id] || [];
+    const lab = kind === "random" ? "random test block" : kind === "normal" ? "normal block" : catName(kind);
+    $("blockcard").innerHTML = `<div class="blockhead"><b>${esc(x.id)}</b><span class="dim">${x.n} lines</span>
+      <span class="dim">${esc(lab)}${kind !== "random" ? ` · ${pos[kind] + 1} / ${pools[kind].length}` : ""}</span></div>
+      <details open><summary>raw log lines</summary><span class="raw">${esc(raw.join("\n"))}</span></details>
+      <details><summary>what the model reads (summary of the block)</summary><span class="raw">${esc(x.prompt)}</span></details>`;
+    $("pred").innerHTML = `<div class="t">my model says</div><p class="dim">Click predict.</p>`;
+    $("truth").innerHTML = `<div class="t">real answer</div><p class="dim">Hidden until you predict.</p>`;
+    $("verdict").hidden = true;
+    $("predict").disabled = false;
+  }
+  function answerHtml(a) {
+    if (!a) return `<p class="bad">No valid JSON answer.</p>`;
+    return `<div>${a.anomalous ? '<span class="bad">problem: yes</span>' : '<span class="ok">problem: no</span>'}</div>
+      ${a.cause ? `<div class="cause">${esc(a.cause)}</div>` : ""}
+      ${a.explanation ? `<div>${esc(a.explanation)}</div>` : ""}
+      ${a.evidence && a.evidence.length ? `<details><summary>evidence it cites (${a.evidence.length})</summary>${a.evidence.map(e => `<div class="ev">· ${esc(short(e))}</div>`).join("")}</details>` : ""}`;
+  }
+  function reveal(a, source) {
+    const x = cur, v = verdictOf(x, a), [c, title, text] = VERDICT[v];
+    $("pred").innerHTML = `<div class="t">my model says <span class="tag">${source}</span></div>${answerHtml(a)}`;
+    const truth = x.label === "Anomaly"
+      ? `<div><span class="bad">problem: yes</span> <span class="dim">(Loghub label: anomaly)</span></div>
+         <div class="cause">${esc(catName(x.cat))}</div><div>${esc(x.ans.rules.a.cause)}</div>`
+      : `<div><span class="ok">problem: no</span> <span class="dim">(Loghub label: normal)</span></div>
+         <div class="cause">normal block</div>
+         <div>${x.cat === "re_replication" ? "HDFS copied this block to another node. That also happens in healthy blocks, and here nothing failed." : "A normal write: allocated, received, stored, and sometimes deleted later."}</div>`;
+    const t = x.ans.teacher;
+    $("truth").innerHTML = `<div class="t">real answer</div>${truth}
+      <details><summary>what the 120B teacher said</summary><div style="margin-top:.4em">${answerHtml(t.a)}</div><div class="dim" style="margin-top:.3em">verdict: ${esc(VERDICT[t.v] ? VERDICT[t.v][1] : t.v)}</div></details>`;
+    $("verdict").hidden = false;
+    $("verdict").innerHTML = `<b class="${c}">${title}</b> <span class="dim">· ${text}</span>`;
+    tally.n++; if (v === "correct" || v === "ok") tally.good++;
+    $("tally").textContent = `this visit: ${tally.good} right out of ${tally.n} tried (on all 123 test blocks: 63% right cause on anomalies, ${D.explorer.filter(y => y.label === "Normal" && y.ans.v2.v === "ok").length} of 40 normal blocks left alone)`;
+    $("predict").disabled = true;
+  }
+
+  // live model (transformers.js + WebGPU), with the saved answer as fallback
+  const live = { checked: false, available: false, why: "", tok: null, model: null, loading: null };
+  const SYSTEM_PROMPT = "You are an HDFS expert. You get a summary of one HDFS block: its events with counts, its WARN/exception lines, and the events a normal block always has. The block may or may not be anomalous. Say whether it shows a real problem and what it is, using only what is in the summary. Do not invent causes that the events do not show. Answer in JSON with the keys: anomalous (true/false), cause (a few words), evidence (list of events from the summary, prefix with 'missing: ' for an absent usual event), explanation (one or two sentences).";
+  async function checkLive() {
+    if (live.checked) return live.available;
+    live.checked = true;
+    if (DEVICE === "webgpu") {
+    if (!("gpu" in navigator)) { live.why = "your browser has no WebGPU"; return false; }
+    try {
+      const ad = await navigator.gpu.requestAdapter();
+      if (!ad) { live.why = "WebGPU is there but no GPU adapter was found"; return false; }
+    } catch (e) { live.why = "WebGPU is not usable here"; return false; }
+    }
+    try {
+      const r = await fetch(`https://huggingface.co/${MODEL_ID}/resolve/main/config.json`, { method: "HEAD" });
+      if (!r.ok) { live.why = "the browser version of the model is not online yet"; return false; }
+    } catch (e) { live.why = "could not reach Hugging Face"; return false; }
+    live.available = true; return true;
+  }
+  function setStatus(s) { $("mstatus").innerHTML = s; }
+  async function loadModel() {
+    if (live.model) return;
+    if (live.loading) return live.loading;
+    live.loading = (async () => {
+      const T = await import(TJS);
+      const files = {}; const bar = $("prog"); bar.hidden = false;
+      const cb = p => {
+        if (p.status === "progress" && p.total) {
+          files[p.file] = [p.loaded, p.total];
+          const [l, t] = Object.values(files).reduce((a, [x, y]) => [a[0] + x, a[1] + y], [0, 0]);
+          bar.firstElementChild.style.width = (100 * l / t).toFixed(1) + "%";
+          setStatus(`<span class="dim">downloading the model: ${(l / 1e6).toFixed(0)} / ${(t / 1e6).toFixed(0)} MB (only the first time)</span>`);
+        }
+      };
+      live.tok = await T.AutoTokenizer.from_pretrained(MODEL_ID);
+      live.model = await T.AutoModelForCausalLM.from_pretrained(MODEL_ID, { dtype: "q4", device: DEVICE, progress_callback: cb });
+      live.T = T; bar.hidden = true;
+    })();
+    try { await live.loading; } catch (e) { live.loading = null; throw e; }
+  }
+  async function runLive(x) {
+    await loadModel();
+    setStatus(`<span class="dim">the model is writing its answer${DEVICE === "webgpu" ? " on your GPU" : " on your CPU (slow)"}…</span>`);
+    const msgs = [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: x.prompt }];
+    const inputs = live.tok.apply_chat_template(msgs, { add_generation_prompt: true, return_dict: true });
+    let text = "";
+    $("pred").innerHTML = `<div class="t">my model says <span class="tag">running live</span></div><div class="stream" id="stream"></div>`;
+    const streamer = new live.T.TextStreamer(live.tok, {
+      skip_prompt: true, skip_special_tokens: true,
+      callback_function: s => { text += s; const el = $("stream"); if (el) { el.textContent = text; el.scrollTop = el.scrollHeight; } },
+    });
+    const t0 = performance.now();
+    await live.model.generate({ ...inputs, max_new_tokens: 300, do_sample: false, streamer });
+    setStatus(`<span class="dim">done in ${((performance.now() - t0) / 1000).toFixed(1)} s</span>`);
+    return parseAnswer(text);
+  }
+  $("predict").addEventListener("click", async () => {
+    if (busy || !cur) return;
+    busy = true; $("predict").disabled = true; $("next").disabled = true;
+    const x = cur;
+    try {
+      if ($("livebox").checked && await checkLive()) {
+        try { const a = await runLive(x); if (x === cur) reveal(a, "live, in your browser"); }
+        catch (e) {
+          console.error(e);
+          live.available = false; live.why = "the model could not run here (" + (e && e.message ? e.message.slice(0, 80) : "error") + ")";
+          setStatus(`<span class="dim">${esc(live.why)}, showing the saved answer</span>`);
+          reveal(x.ans.v2.a, "saved answer");
+        }
+      } else {
+        setStatus("");
+        reveal(x.ans.v2.a, "saved answer");
+      }
+    } finally { busy = false; $("next").disabled = false; }
+  });
+  $("next").addEventListener("click", pick);
+  // show the live option only if WebGPU works and the browser model is online
+  checkLive().then(ok => {
+    $("livenote").textContent = ok ? `Live model: huggingface.co/${MODEL_ID}.` : `Live run is not available on this visit: ${live.why}.`;
+    if (!ok) return;
+    $("liverow").hidden = false;
+    try { $("livebox").checked = localStorage.getItem("rc-live") === "1"; } catch (e) {}
+    $("livebox").addEventListener("change", () => { try { localStorage.setItem("rc-live", $("livebox").checked ? "1" : "0"); } catch (e) {} });
+  });
 
   // ------------------------------------------------------------ detector (same as src/pipeline.py)
   function template(log) {
-    let msg = log, pos = -1, cut = 0;
-    for (let k = 0; k < 3; k++) { pos = log.indexOf(" ", pos + 1); if (pos < 0) break; cut++; }
-    if (cut === 3) msg = log.slice(pos + 1);
+    let msg = log, p = -1, cut = 0;
+    for (let k = 0; k < 3; k++) { p = log.indexOf(" ", p + 1); if (p < 0) break; cut++; }
+    if (cut === 3) msg = log.slice(p + 1);
     return msg.replace(/blk_-?\d+/g, "<BLK>").replace(/\d+\.\d+\.\d+\.\d+(:\d+)?/g, "<IP>")
               .replace(/\/[\w.\/\-]+/g, "<PATH>").replace(/\d+/g, "<N>").trim();
   }
@@ -179,25 +594,24 @@ footer { color: var(--dim); font-size: 13px; }
     return { missing, rare };
   }
   const RULES = [
-    [(m, r) => m.some(t => t.includes("addStoredBlock: blockMap updated")), "never stored", "The block was allocated but never stored: the events a normal write ends with never appear."],
-    [(m, r) => r.some(t => t.includes("Unexpected error trying to delete")), "failed delete", "A delete failed: the DataNode had no record of the block (BlockInfo not found)."],
-    [(m, r) => r.some(t => t.includes("does not belong to any file")), "block of no file", "The NameNode received addStoredBlock for a block that belongs to no file."],
-    [(m, r) => r.some(t => t.includes("Redundant addStoredBlock")), "redundant", "The same replica was reported as stored twice (redundant addStoredBlock)."],
-    [(m, r) => r.some(t => t.includes("empty packet")), "empty packet", "A DataNode received an empty packet while writing the block."],
-    [(m, r) => r.some(t => t.includes("timed out block")), "replication timeout", "A pending replication of the block timed out."],
-    [(m, r) => r.some(t => t.includes("to replicate") || t.includes("Starting thread to transfer")), "re-replication", "The NameNode had to copy the block to another DataNode (re-replication), which usually means a replica was lost."],
-    [(m, r) => r.length > 0, "rare events", "The block contains events that normal blocks almost never have."],
-    [(m, r) => m.length > 0, "missing events", "Some events that normal blocks have are absent."],
+    [(m, r) => m.some(t => t.includes("addStoredBlock: blockMap updated")), "The block was allocated but never stored: the events a normal write ends with never appear."],
+    [(m, r) => r.some(t => t.includes("Unexpected error trying to delete")), "A delete failed: the DataNode had no record of the block (BlockInfo not found)."],
+    [(m, r) => r.some(t => t.includes("does not belong to any file")), "The NameNode received addStoredBlock for a block that belongs to no file."],
+    [(m, r) => r.some(t => t.includes("Redundant addStoredBlock")), "The same replica was reported as stored twice (redundant addStoredBlock)."],
+    [(m, r) => r.some(t => t.includes("empty packet")), "A DataNode received an empty packet while writing the block."],
+    [(m, r) => r.some(t => t.includes("timed out block")), "A pending replication of the block timed out."],
+    [(m, r) => r.some(t => t.includes("to replicate") || t.includes("Starting thread to transfer")), "The NameNode had to copy the block to another DataNode (re-replication), which usually means a replica was lost."],
+    [(m, r) => r.length > 0, "The block contains events that normal blocks almost never have."],
+    [(m, r) => m.length > 0, "Some events that normal blocks have are absent."],
   ];
   function rule(m, r) {
-    for (const [test, name, text] of RULES) if (test(m, r)) return text;
+    for (const [test, text] of RULES) if (test(m, r)) return text;
     return "No single event stands out; the counts as a whole look unusual.";
   }
+  const cls = v => (v === "correct" || v === "ok") ? "ok" : "bad";
 
   // ------------------------------------------------------------ playground
   let blocks = [];
-  const EXPL = new Map(D.explorer.map(x => [x.id, x]));
-
   function parse(text) {
     const m = new Map();
     for (const raw of text.split(/\r?\n/)) {
@@ -210,27 +624,19 @@ footer { color: var(--dim); font-size: 13px; }
     }
     return [...m].map(([id, counts]) => ({ id, counts, orig: new Map(counts), open: false }));
   }
-
   function blockHtml(b, k) {
     const s = scoreOf(b.counts), f = s > 0.5;
     const n = [...b.counts.values()].reduce((a, c) => a + c, 0);
-    const edited = [...b.counts].some(([t, c]) => c !== (b.orig.get(t) || 0)) || [...b.orig].some(([t, c]) => !b.counts.has(t));
+    const edited = [...b.counts].some(([t, c]) => c !== (b.orig.get(t) || 0)) || [...b.orig].some(([t]) => !b.counts.has(t));
     const truth = D.truth[b.id] ? ` <span class="dim">· loghub label: ${D.truth[b.id].toLowerCase()}</span>` : "";
     const { missing, rare } = evidence(b.counts);
     let h = `<div class="blk" data-k="${k}">
-      <div class="row">${esc(b.id)}  <span class="${f ? "bad" : "ok"}">${f ? "FLAGGED" : "normal"}</span>  <span class="score">score ${s.toFixed(3)}</span>  <span class="dim">${n} line${n === 1 ? "" : "s"}</span>${truth}${edited ? `  <button class="lnk" data-act="reset">[reset]</button>` : ""}</div>
+      <div class="row">${esc(b.id)}  <span class="${f ? "bad" : "ok"}">${f ? "FLAGGED" : "normal"}</span>  <span>score ${s.toFixed(3)}</span>  <span class="dim">${n} line${n === 1 ? "" : "s"}</span>${truth}${edited ? `  <button class="lnk" data-act="reset">[reset]</button>` : ""}</div>
       <div class="bar"><i style="width:${(100 * s).toFixed(1)}%;background:var(${f ? "--bad" : "--ok"})"></i></div>`;
     if (f) {
-      h += `<div class="row ind">rules: <span class="head">${esc(rule(missing, rare))}</span></div>` +
+      h += `<div class="row ind">why: <span class="head">${esc(rule(missing, rare))}</span></div>` +
         missing.map(t => `<div class="row ind2"><span class="bad">missing</span> ${esc(short(t))}</div>`).join("") +
         rare.map(t => `<div class="row ind2"><span class="head">rare</span>    ${esc(short(t))}</div>`).join("");
-      const x = EXPL.get(b.id);
-      if (x && !edited) {
-        for (const s of ["teacher", "v2"]) {
-          const a = x.ans[s];
-          h += `<div class="row ind">${s === "v2" ? "v2 model" : "teacher"} (saved answer): <span class="head">${esc(a.a ? a.a.cause : "no valid answer")}</span> <span class="${cls(a.v)}">[${a.v}]</span></div>`;
-        }
-      }
     }
     const rows = [...b.counts].sort((p, q) => weight(q[0]) - weight(p[0])).map(([t, c]) => {
       const w = weight(t), unseen = !INDEX.has(t);
@@ -241,14 +647,12 @@ footer { color: var(--dim); font-size: 13px; }
     }).join("");
     const opts = D.templates.filter(t => !b.counts.has(t)).sort((p, q) => weight(q) - weight(p))
       .map(t => `<option value="${esc(t)}">${weight(t) > 0 ? "+" : ""}${weight(t).toFixed(1)}  ${esc(short(t))}</option>`).join("");
-    h += `<details ${b.open ? "open" : ""} data-act="toggle"><summary>edit the block: events, weights, contribution to the score</summary>
-      <div class="tbl"><table><tr><th class="n">count</th><th class="n">weight</th><th class="n hide-sm">w·log(1+c)</th><th>template</th></tr>${rows}</table></div>
+    h += `<details ${b.open ? "open" : ""}><summary>edit the block: events, weights, contribution to the score</summary>
+      <div class="tbl"><table><tr><th class="n">count</th><th class="n">weight</th><th class="n hide-sm">w·log(1+c)</th><th>event</th></tr>${rows}</table></div>
       <div class="row"><select data-act="pick" aria-label="add an event"><option value="">add an event…</option>${opts}</select></div>
-      <p class="dim" style="margin-top:.5em">score = sigmoid(${D.intercept.toFixed(2)} + Σ weight · log(1 + count))</p></details></div>`;
+      <p class="dim" style="margin-top:.5em">score = sigmoid(${D.intercept.toFixed(2)} + Σ weight · log(1 + count)). Red weights push towards "anomaly".</p></details></div>`;
     return h;
   }
-  const cls = v => (v === "correct" || v === "ok") ? "ok" : "bad";
-
   function render() {
     const el = $("out");
     if (!blocks.length) { el.innerHTML = `<p class="dim">no block id found. HDFS lines about a block contain an id like blk_-1608999687919862906.</p>`; return; }
@@ -257,8 +661,7 @@ footer { color: var(--dim); font-size: 13px; }
       blocks.map(blockHtml).join("");
   }
   function run() {
-    blocks = parse($("log").value)
-      .sort((a, b) => scoreOf(b.counts) - scoreOf(a.counts));
+    blocks = parse($("log").value).sort((a, b) => scoreOf(b.counts) - scoreOf(a.counts));
     if (blocks.length === 1) blocks[0].open = true;
     render();
   }
@@ -281,7 +684,6 @@ footer { color: var(--dim); font-size: 13px; }
     const b = blocks[+e.target.closest(".blk").dataset.k];
     b.counts.set(e.target.value, 1); b.open = true; render();
   });
-
   const ta = $("log"), ex = $("examples");
   const setCount = () => { $("count").textContent = `(${ta.value.split(/\r?\n/).filter(s => s.trim()).length} lines)`; };
   function load(lines, id) {
@@ -312,18 +714,18 @@ footer { color: var(--dim); font-size: 13px; }
     const fn = S.n_anom - tp, p = tp / Math.max(1, tp + fp), r = tp / S.n_anom, f1 = 2 * p * r / Math.max(1e-9, p + r);
     $("thrv").textContent = t.toFixed(3);
     $("throut").innerHTML = [
-      ["caught (TP)", `${tp} / ${S.n_anom}`], ["false alarms (FP)", `<span class="${fp ? "bad" : "ok"}">${fp}</span>`],
-      ["missed (FN)", `<span class="${fn > 20 ? "bad" : ""}">${fn}</span>`], ["precision", p.toFixed(3)], ["recall", r.toFixed(3)],
+      ["caught", `${tp} / ${S.n_anom}`], ["false alarms", `<span class="${fp ? "bad" : "ok"}">${fp}</span>`],
+      ["missed", `<span class="${fn > 20 ? "bad" : ""}">${fn}</span>`], ["precision", p.toFixed(3)], ["recall", r.toFixed(3)],
       ["F1", `<span class="head">${f1.toFixed(3)}</span>`]].map(([k, v]) => `<span class="dim">${k}</span><span>${v}</span>`).join("");
     $("thrnote").textContent = fp
-      ? `${fprr} of the ${fp} false alarms are re-replication blocks. Raising the threshold removes them, at the cost of missed anomalies.`
+      ? `${fprr} of the ${fp} false alarms are re-replication blocks (HDFS copying a block after losing a replica). Raising the threshold removes them, but more anomalies are missed.`
       : "No false alarm left, but look at how many anomalies are now missed.";
   }
   $("thr").addEventListener("input", thr); thr();
 
-  // ------------------------------------------------------------ explorer
+  // ------------------------------------------------------------ all answers
   const CATS = [...new Set(D.explorer.map(x => x.cat))];
-  $("fc").innerHTML += CATS.map(c => `<option>${esc(c)}</option>`).join("");
+  $("fc").innerHTML += CATS.map(c => `<option value="${esc(c)}">${esc(catName(c))}</option>`).join("");
   function answer(name, a) {
     if (!a.a) return `<div class="row ind"><span class="dim">${name}:</span> <span class="bad">[${a.v}]</span> no valid answer</div>`;
     const ev = (a.a.evidence || []).map(e => `<div class="row ind2 dim">· ${esc(short(String(e)))}</div>`).join("");
@@ -333,29 +735,24 @@ footer { color: var(--dim); font-size: 13px; }
   function explorer() {
     const L = $("fl").value, C = $("fc").value, V = $("fv").value;
     const xs = D.explorer.filter(x => (!L || x.label === L) && (!C || x.cat === C) && (!V || x.ans.v2.v === V));
-    const tally = s => { const c = {}; xs.forEach(x => c[x.ans[s].v] = (c[x.ans[s].v] || 0) + 1); return Object.entries(c).map(([k, n]) => `${n} ${k}`).join(", "); };
-    $("exsum").innerHTML = `${xs.length} blocks · v2: ${tally("v2")} · teacher: ${tally("teacher")}`;
-    $("exlist").innerHTML = xs.map(x => `<details class="ex" data-id="${esc(x.id)}"><summary class="row">${x.label === "Anomaly" ? '<span class="bad">A</span>' : '<span class="ok">N</span>'} ${esc(x.cat.padEnd(19))} <span class="hide-sm dim">${esc(x.id.padEnd(26))}</span> rules <span class="${cls(x.ans.rules.v)}">${x.ans.rules.v.padEnd(8)}</span> teacher <span class="${cls(x.ans.teacher.v)}">${x.ans.teacher.v.padEnd(8)}</span> v2 <span class="${cls(x.ans.v2.v)}">${x.ans.v2.v}</span></summary></details>`).join("");
+    const tl = s => { const c = {}; xs.forEach(x => c[x.ans[s].v] = (c[x.ans[s].v] || 0) + 1); return Object.entries(c).map(([k, n]) => `${n} ${k}`).join(", "); };
+    $("exsum").innerHTML = `${xs.length} blocks · v2: ${tl("v2")} · teacher: ${tl("teacher")}`;
+    $("exlist").innerHTML = xs.map(x => `<details class="ex2" data-id="${esc(x.id)}"><summary class="row">${x.label === "Anomaly" ? '<span class="bad">A</span>' : '<span class="ok">N</span>'} ${esc(catName(x.cat).padEnd(24))} <span class="hide-sm">rules <span class="${cls(x.ans.rules.v)}">${x.ans.rules.v.padEnd(8)}</span> teacher <span class="${cls(x.ans.teacher.v)}">${x.ans.teacher.v.padEnd(8)}</span> </span>v2 <span class="${cls(x.ans.v2.v)}">${x.ans.v2.v}</span></summary></details>`).join("");
   }
   $("exlist").addEventListener("toggle", e => {
     const d = e.target; if (d.tagName !== "DETAILS" || !d.open || d.dataset.done) return;
     const x = EXPL.get(d.dataset.id); d.dataset.done = "1";
     d.insertAdjacentHTML("beforeend", `<div style="padding-bottom:.8em">
-      <div class="row dim">${x.label.toLowerCase()} block, ${x.n} lines. reference cause: ${esc(x.cat)}. what the models saw:</div>
+      <div class="row dim">${esc(x.id)} · ${x.label.toLowerCase()} block, ${x.n} lines · reference cause: ${esc(catName(x.cat))}. what the models saw:</div>
       <span class="code">${esc(x.prompt)}</span>
-      ${answer("rules", x.ans.rules)}${answer("teacher", x.ans.teacher)}${answer("v2", x.ans.v2)}
-      <button class="lnk" data-open="${esc(x.id)}">[open the raw lines in the playground]</button></div>`);
+      ${answer("rules", x.ans.rules)}${answer("teacher", x.ans.teacher)}${answer("v2", x.ans.v2)}</div>`);
   }, true);
-  $("exlist").addEventListener("click", e => {
-    const b = e.target.closest("[data-open]"); if (!b) return;
-    const x = EXPL.get(b.dataset.open); D.truth[x.id] = x.label;
-    load(D.raw[x.id], ""); $("play").scrollIntoView({ behavior: "smooth" });
-  });
   ["fl", "fc", "fv"].forEach(id => $(id).addEventListener("change", explorer));
   explorer();
 
   load(D.examples[0].lines, D.examples[0].id);
-  window.__rc = { template, scoreOf, parse, evidence, rule, thrOf };
+  kind = "never_stored"; pick();
+  window.__rc = { template, scoreOf, parse, evidence, rule, parseAnswer, verdictOf, predictedCats };
 })();
 </script>
 </body>
